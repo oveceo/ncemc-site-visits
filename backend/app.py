@@ -193,6 +193,7 @@ def init_db():
             complete        INTEGER DEFAULT 0,
             is_walkin       INTEGER DEFAULT 0,
             date_stamp      TEXT NOT NULL,
+            archived_at     TEXT DEFAULT NULL,
             FOREIGN KEY (visitor_id) REFERENCES visitors(id)
         );
         CREATE TABLE IF NOT EXISTS audit_log (
@@ -203,6 +204,14 @@ def init_db():
             actor      TEXT DEFAULT 'system'
         );
     """)
+
+    # Migrate: add archived_at if it doesn't exist yet
+    try:
+        conn.execute("ALTER TABLE checkins ADD COLUMN archived_at TEXT DEFAULT NULL")
+        conn.commit()
+        print("[MIGRATION] Added archived_at column to checkins")
+    except Exception:
+        pass  # Column already exists
 
     cur = conn.cursor()
     cur.execute("SELECT value FROM config WHERE key = 'staff_password'")
@@ -617,6 +626,7 @@ def api_dashboard_checkins():
         SELECT c.*, v.name as visitor_name, v.company, v.phone, v.approved
         FROM checkins c JOIN visitors v ON v.id = c.visitor_id
         WHERE c.date_stamp >= ? AND c.date_stamp <= ?
+          AND c.archived_at IS NULL
         ORDER BY c.date_stamp DESC, c.time_in DESC
     """, (date_from, date_to)).fetchall()
 
@@ -670,6 +680,91 @@ def api_dashboard_update(checkin_id):
             "approved": row["approved"],
         })
         audit("update_checkin", f"#{checkin_id} — {row['visitor_name']}", "staff")
+    return jsonify({"success": True})
+
+
+@app.route("/api/dashboard/archive", methods=["POST"])
+@token_required
+def api_archive_completed():
+    """Archive all completed check-ins for the given date (default today)."""
+    db = get_db()
+    data = request.get_json() or {}
+    target_date = data.get("date", date.today().isoformat())
+    now_ts = datetime.now().isoformat()
+
+    rows = db.execute("""
+        SELECT c.id, v.name as visitor_name, v.company
+        FROM checkins c JOIN visitors v ON v.id = c.visitor_id
+        WHERE c.date_stamp = ? AND c.archived_at IS NULL
+          AND (c.time_out IS NOT NULL OR c.complete = 1)
+    """, (target_date,)).fetchall()
+
+    if not rows:
+        return jsonify({"success": True, "archived": 0, "message": "Nothing to archive."})
+
+    ids = [r["id"] for r in rows]
+    db.execute(
+        "UPDATE checkins SET archived_at = ? WHERE id IN ({})".format(",".join("?" * len(ids))),
+        [now_ts] + ids
+    )
+    db.commit()
+
+    names = ", ".join(r["visitor_name"] for r in rows[:5])
+    if len(rows) > 5:
+        names += f" + {len(rows) - 5} more"
+    audit("archive_completed", f"{len(rows)} records archived for {target_date}: {names}", "staff")
+    notify_dashboard("archive", {"date": target_date, "count": len(rows)})
+    return jsonify({"success": True, "archived": len(rows)})
+
+
+@app.route("/api/dashboard/archive")
+@token_required
+def api_list_archive():
+    """Return archived check-ins from the last 7 days."""
+    db = get_db()
+    rows = db.execute("""
+        SELECT c.*, v.name as visitor_name, v.company, v.phone, v.approved
+        FROM checkins c JOIN visitors v ON v.id = c.visitor_id
+        WHERE c.archived_at IS NOT NULL
+          AND c.archived_at >= datetime('now', '-7 days')
+        ORDER BY c.archived_at DESC, c.date_stamp DESC, c.time_in DESC
+    """).fetchall()
+    return jsonify([{
+        "id": r["id"], "visitor_id": r["visitor_id"],
+        "visitor_name": r["visitor_name"], "company": r["company"],
+        "phone": r["phone"], "site": r["site"],
+        "estimated_time": r["estimated_time"], "reason": r["reason"],
+        "notes": r["notes"], "time_in": r["time_in"], "time_out": r["time_out"],
+        "uar_number": r["uar_number"], "ticket_closed": r["ticket_closed"],
+        "alarms_clear": r["alarms_clear"], "alarm_details": r["alarm_details"],
+        "complete": r["complete"], "is_walkin": r["is_walkin"],
+        "approved": r["approved"], "date_stamp": r["date_stamp"],
+        "archived_at": r["archived_at"],
+    } for r in rows])
+
+
+@app.route("/api/dashboard/archive/restore/<int:checkin_id>", methods=["POST"])
+@token_required
+def api_restore_checkin(checkin_id):
+    """Restore a single archived check-in."""
+    db = get_db()
+    row = db.execute("""
+        SELECT c.*, v.name as visitor_name, v.company
+        FROM checkins c JOIN visitors v ON v.id = c.visitor_id
+        WHERE c.id = ? AND c.archived_at IS NOT NULL
+    """, (checkin_id,)).fetchone()
+    if not row:
+        return jsonify({"error": "Record not found or not archived"}), 404
+
+    # Check 7-day limit
+    archived_dt = datetime.fromisoformat(row["archived_at"])
+    if (datetime.now() - archived_dt).days >= 7:
+        return jsonify({"error": "Archive expired — records older than 7 days cannot be restored"}), 410
+
+    db.execute("UPDATE checkins SET archived_at = NULL WHERE id = ?", (checkin_id,))
+    db.commit()
+    audit("restore_checkin", f"#{checkin_id} — {row['visitor_name']} ({row['company']}) restored from archive", "staff")
+    notify_dashboard("restore", {"id": checkin_id, "visitor_name": row["visitor_name"]})
     return jsonify({"success": True})
 
 

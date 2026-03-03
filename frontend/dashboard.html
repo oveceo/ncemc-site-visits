@@ -93,12 +93,46 @@
     <section class="dash-section">
         <h2 class="section-title section-toggle" id="toggle-completed">
             <span id="completed-title">Completed Today</span>
+            <div class="completed-header-actions">
+                <button class="btn btn-sm btn-archive-clear" id="btn-clear-completed" title="Archive completed visits and clear from dashboard">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                        <path d="M10 11v6M14 11v6"/>
+                        <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                    </svg>
+                    Clear &amp; Archive
+                </button>
+                <button class="btn btn-sm btn-view-archive" id="btn-view-archive" title="View 7-day archive">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                        <path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/>
+                    </svg>
+                    Archive
+                </button>
+            </div>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20" class="toggle-arrow">
                 <path d="M6 9l6 6 6-6"/>
             </svg>
         </h2>
         <div id="completed-list" class="checkin-grid collapsed"></div>
     </section>
+
+    <!-- Archive Drawer -->
+    <div id="archive-drawer" class="archive-drawer" style="display:none">
+        <div class="archive-backdrop" id="archive-backdrop"></div>
+        <div class="archive-panel">
+            <div class="archive-header">
+                <div>
+                    <h3>Archive</h3>
+                    <p class="archive-subtitle">⚠️ Records are only kept for <strong>7 days</strong> — after that they are permanently deleted and cannot be restored.</p>
+                </div>
+                <button class="modal-close" id="archive-close">&times;</button>
+            </div>
+            <div id="archive-list" class="archive-list">
+                <div class="empty-state"><p>Loading archive...</p></div>
+            </div>
+        </div>
+    </div>
 
     <div id="edit-modal" class="modal" style="display:none">
         <div class="modal-backdrop"></div>
@@ -294,6 +328,18 @@
                 showToast(data.name + ' added to directory', 'checkout');
             });
 
+            es.addEventListener('archive', e => {
+                const data = JSON.parse(e.data);
+                // If another tab/user archived records, refresh
+                checkins = checkins.filter(c => !(c.time_out || c.complete));
+                renderAll();
+            });
+
+            es.addEventListener('restore', e => {
+                const data = JSON.parse(e.data);
+                if (isViewingToday) loadCheckins();
+            });
+
             es.onerror = () => { status.classList.remove('connected'); status.querySelector('.status-text').textContent = 'Reconnecting...'; };
         }
 
@@ -438,10 +484,90 @@
             });
         });
 
-        document.getElementById('toggle-completed').addEventListener('click', () => {
+        document.getElementById('toggle-completed').addEventListener('click', function(e) {
+            if (e.target.closest('.completed-header-actions')) return;
             completedList.classList.toggle('collapsed');
             document.querySelector('.toggle-arrow').classList.toggle('rotated');
         });
+
+        // Archive: clear completed
+        document.getElementById('btn-clear-completed').addEventListener('click', function(e) {
+            e.stopPropagation();
+            const completed = checkins.filter(c => c.time_out || c.complete);
+            if (completed.length === 0) { showToast('Nothing to archive.', 'checkout'); return; }
+            if (!confirm(`Archive ${completed.length} completed visit(s) from the dashboard?\n\nThey will be stored in the 7-day archive and can be restored from there.`)) return;
+            api.postJSON('/api/dashboard/archive', { date: currentFrom }).then(data => {
+                if (data.success) {
+                    checkins = checkins.filter(c => !c.time_out && !c.complete);
+                    renderAll();
+                    showToast(`${data.archived} record(s) archived.`, 'checkout');
+                } else {
+                    showToast(data.message || data.error || 'Archive failed.', 'checkout');
+                }
+            });
+        });
+
+        // Archive: view drawer
+        document.getElementById('btn-view-archive').addEventListener('click', function(e) {
+            e.stopPropagation();
+            openArchiveDrawer();
+        });
+        document.getElementById('archive-close').addEventListener('click', closeArchiveDrawer);
+        document.getElementById('archive-backdrop').addEventListener('click', closeArchiveDrawer);
+
+        function openArchiveDrawer() {
+            const drawer = document.getElementById('archive-drawer');
+            const list = document.getElementById('archive-list');
+            drawer.style.display = 'flex';
+            list.innerHTML = '<div class="empty-state"><p>Loading...</p></div>';
+            api.fetchJSON('/api/dashboard/archive').then(records => {
+                if (records.length === 0) {
+                    list.innerHTML = '<div class="empty-state"><p>No archived records in the last 7 days.</p></div>';
+                    return;
+                }
+                // Group by date
+                const grouped = {};
+                records.forEach(r => { (grouped[r.date_stamp] = grouped[r.date_stamp] || []).push(r); });
+                list.innerHTML = Object.keys(grouped).sort().reverse().map(d => {
+                    const fmt = new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                    const archivedAt = new Date(grouped[d][0].archived_at);
+                    const expiry = new Date(archivedAt.getTime() + 7 * 86400000);
+                    const daysLeft = Math.max(0, Math.ceil((expiry - Date.now()) / 86400000));
+                    return `<div class="archive-group">
+                        <div class="archive-group-header">
+                            <span>${fmt} — ${grouped[d].length} record(s)</span>
+                            <span class="archive-expiry ${daysLeft <= 1 ? 'expiry-urgent' : ''}">Expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}</span>
+                        </div>
+                        ${grouped[d].map(r => `
+                            <div class="archive-item">
+                                <div class="archive-item-info">
+                                    <strong>${esc(r.visitor_name)}</strong>
+                                    <span>${esc(r.company)}</span>
+                                    <span>${esc(r.site)} · In: ${r.time_in}${r.time_out ? ' · Out: ' + r.time_out : ''}</span>
+                                </div>
+                                <button class="btn btn-sm btn-primary" onclick="restoreCheckin(${r.id}, this)">Restore</button>
+                            </div>
+                        `).join('')}
+                    </div>`;
+                }).join('');
+            });
+        }
+
+        function closeArchiveDrawer() { document.getElementById('archive-drawer').style.display = 'none'; }
+
+        window.restoreCheckin = function(id, btn) {
+            btn.disabled = true; btn.textContent = 'Restoring...';
+            api.fetch('/api/dashboard/archive/restore/' + id, { method: 'POST' }).then(r => r.json()).then(data => {
+                if (data.success) {
+                    showToast('Record restored to dashboard.', 'checkin');
+                    openArchiveDrawer();
+                    loadCheckins();
+                } else {
+                    alert(data.error || 'Restore failed.');
+                    btn.disabled = false; btn.textContent = 'Restore';
+                }
+            });
+        };
 
         function showToast(message, type) {
             const container = document.getElementById('toast-container');
