@@ -356,12 +356,12 @@
             const ci = checkins.find(c => c.id === id);
             if (!ci) return;
             const lines = [
-                'Name\t\t' + (ci.visitor_name || ''),
-                'Company\t\t' + (ci.company || ''),
-                'Phone\t\t' + (ci.phone || ''),
-                'Site\t\t' + (ci.site || ''),
-                'Est. Time\t' + (ci.estimated_time || ''),
-                'Reason\t\t' + (ci.reason || ''),
+                ci.visitor_name || '',
+                ci.company || '',
+                ci.phone || '',
+                ci.site || '',
+                ci.estimated_time || '',
+                ci.reason || '',
             ];
             const text = lines.join('\n');
             navigator.clipboard.writeText(text).then(() => {
