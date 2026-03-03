@@ -1091,8 +1091,16 @@ def health():
 # ---------------------------------------------------------------------------
 # Startup — runs whether launched via gunicorn or python directly
 # ---------------------------------------------------------------------------
-init_db()
-import_from_excel()
+try:
+    print("[STARTUP] Initializing database...")
+    init_db()
+    print("[STARTUP] Database initialized. Running Excel import check...")
+    import_from_excel()
+    print("[STARTUP] Startup complete.")
+except Exception as e:
+    print(f"[STARTUP ERROR] {e}")
+    import traceback
+    traceback.print_exc()
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
