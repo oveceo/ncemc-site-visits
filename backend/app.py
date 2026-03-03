@@ -228,7 +228,8 @@ def init_db():
 
 def import_from_excel():
     if not os.path.exists(EXCEL_PATH):
-        print(f"[INFO] Excel file not found at {EXCEL_PATH} — skipping import.")
+        print(f"[WARN] Excel file not found at {EXCEL_PATH} — skipping import.")
+        print(f"[WARN] BASE_DIR={BASE_DIR}, cwd={os.getcwd()}")
         return
 
     conn = sqlite3.connect(DB_PATH)
@@ -236,6 +237,8 @@ def import_from_excel():
         print("[INFO] Database already has visitor data — skipping Excel import.")
         conn.close()
         return
+
+    print(f"[INFO] Excel file found at {EXCEL_PATH}, starting import...")
 
     try:
         import openpyxl
@@ -966,7 +969,28 @@ def api_qr_png():
 # ---------------------------------------------------------------------------
 @app.route("/api/health")
 def health():
-    return jsonify({"status": "ok", "time": datetime.now().isoformat()})
+    try:
+        db = get_db()
+        counts = {
+            "visitors":  db.execute("SELECT COUNT(*) FROM visitors").fetchone()[0],
+            "companies": db.execute("SELECT COUNT(*) FROM companies").fetchone()[0],
+            "sites":     db.execute("SELECT COUNT(*) FROM sites").fetchone()[0],
+            "reasons":   db.execute("SELECT COUNT(*) FROM reasons").fetchone()[0],
+            "checkins":  db.execute("SELECT COUNT(*) FROM checkins").fetchone()[0],
+        }
+        db_ok = True
+    except Exception as e:
+        counts = {}
+        db_ok = False
+    return jsonify({
+        "status": "ok" if db_ok else "error",
+        "time": datetime.now().isoformat(),
+        "db_path": DB_PATH,
+        "excel_path": EXCEL_PATH,
+        "excel_exists": os.path.exists(EXCEL_PATH),
+        "db_ok": db_ok,
+        "counts": counts,
+    })
 
 
 # ---------------------------------------------------------------------------
