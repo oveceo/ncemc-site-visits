@@ -610,6 +610,17 @@ label {
     .stat-label { font-size: 0.7rem; }
 }
 
+/* Volume control */
+.volume-control { display: flex; align-items: center; gap: 5px; background: rgba(255,255,255,0.08);
+                  border-radius: 20px; padding: 4px 10px; }
+.volume-control input[type="range"] { width: 80px; height: 4px; cursor: pointer; accent-color: var(--primary);
+                                       background: rgba(255,255,255,0.2); border-radius: 2px; outline: none;
+                                       -webkit-appearance: none; appearance: none; }
+.volume-control input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px;
+    border-radius: 50%; background: var(--primary); cursor: pointer; }
+.volume-control input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%;
+    background: var(--primary); cursor: pointer; border: none; }
+
 /* Copy info button */
 .btn-copy { color: var(--primary); }
 .btn-copied { background: var(--success, #10b981) !important; color: #fff !important; }

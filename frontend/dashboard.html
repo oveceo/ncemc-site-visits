@@ -29,6 +29,16 @@
                     <path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/>
                 </svg>
             </button>
+            <div class="volume-control" title="Alert volume">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="opacity:0.6;flex-shrink:0">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                </svg>
+                <input type="range" id="volume-slider" min="0" max="100" value="80" title="Alert volume">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="opacity:0.6;flex-shrink:0">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                    <path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/>
+                </svg>
+            </div>
             <a href="/qr.html" class="btn btn-sm" title="QR code for visitors">QR Code</a>
             <a href="/admin.html" class="btn btn-sm">Admin</a>
             <button class="btn btn-sm btn-outline" id="btn-logout" title="Log out">Logout</button>
@@ -192,13 +202,17 @@
         });
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const volumeSlider = document.getElementById('volume-slider');
 
-        function playTone(freq, type, startTime, duration, volume) {
+        function getVolume() { return parseFloat(volumeSlider.value) / 100; }
+
+        function playTone(freq, type, startTime, duration, relativeVol) {
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.type = type;
             osc.frequency.value = freq;
-            gain.gain.setValueAtTime(volume, startTime);
+            const vol = Math.min(1, getVolume() * relativeVol);
+            gain.gain.setValueAtTime(vol, startTime);
             gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
             osc.connect(gain); gain.connect(audioCtx.destination);
             osc.start(startTime); osc.stop(startTime + duration);
@@ -210,12 +224,12 @@
             if (isWalkin) {
                 // Walk-in: urgent triple beep (triangle wave, ascending)
                 [880, 1046.5, 1318.5].forEach((freq, i) => {
-                    playTone(freq, 'triangle', audioCtx.currentTime + i * 0.14, 0.3, 0.4);
+                    playTone(freq, 'triangle', audioCtx.currentTime + i * 0.14, 0.3, 1.2);
                 });
             } else {
                 // Regular check-in: friendly two-tone chime (sine, ascending)
                 [523.25, 783.99].forEach((freq, i) => {
-                    playTone(freq, 'sine', audioCtx.currentTime + i * 0.18, 0.5, 0.3);
+                    playTone(freq, 'sine', audioCtx.currentTime + i * 0.18, 0.5, 1.0);
                 });
             }
         }
@@ -225,7 +239,7 @@
             if (audioCtx.state === 'suspended') audioCtx.resume();
             // Checkout: descending two-tone (sine, going down — signals departure)
             [783.99, 523.25].forEach((freq, i) => {
-                playTone(freq, 'sine', audioCtx.currentTime + i * 0.18, 0.5, 0.25);
+                playTone(freq, 'sine', audioCtx.currentTime + i * 0.18, 0.5, 0.9);
             });
         }
 
