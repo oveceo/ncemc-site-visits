@@ -639,6 +639,10 @@ label {
                              padding: 2rem 1rem; font-size: 0.95rem; }
 
 /* ── Archive UI ── */
+/* Per-card archive button */
+.btn-card-archive { color: #f87171; opacity: 0.7; transition: opacity 0.2s; }
+.btn-card-archive:hover { opacity: 1; }
+
 .completed-header-actions { display: flex; gap: 6px; margin-left: auto; margin-right: 8px; }
 .btn-archive-clear { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3);
                      display: flex; align-items: center; gap: 5px; font-size: 0.78rem; font-weight: 600;

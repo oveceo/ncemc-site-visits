@@ -391,6 +391,7 @@
                     (!c.time_out ? '<button class="btn btn-sm btn-action" onclick="quickCheckout(' + c.id + ')">Check Out</button>' : '') +
                     '<button class="btn btn-sm btn-action" onclick="openEdit(' + c.id + ')">Edit</button>' +
                     '<button class="btn btn-sm btn-action btn-copy" onclick="copyInfo(' + c.id + ', this)" title="Copy for Power Supply Portal">Copy Info</button>' +
+                    (isDone ? '<button class="btn btn-sm btn-card-archive" onclick="archiveOne(' + c.id + ', this)" title="Archive this record">Archive</button>' : '') +
                     approveBtn +
                 '</div></div>';
         }
@@ -430,6 +431,23 @@
                 btn.classList.add('btn-copied');
                 setTimeout(() => { btn.textContent = orig; btn.classList.remove('btn-copied'); }, 1500);
             }).catch(() => { alert('Copy failed. Please try again.'); });
+        };
+
+        window.archiveOne = function(id, btn) {
+            const ci = checkins.find(c => c.id === id);
+            if (!ci) return;
+            if (!confirm('Archive ' + (ci.visitor_name || 'this record') + '?\n\nIt will be stored in the 7-day archive and can be restored from there.')) return;
+            btn.disabled = true; btn.textContent = 'Archiving...';
+            api.postJSON('/api/dashboard/archive-one/' + id, {}).then(data => {
+                if (data.success) {
+                    checkins = checkins.filter(c => c.id !== id);
+                    renderAll();
+                    showToast((ci.visitor_name || 'Record') + ' archived.', 'checkout');
+                } else {
+                    alert(data.error || 'Archive failed.');
+                    btn.disabled = false; btn.textContent = 'Archive';
+                }
+            });
         };
 
         window.approveVisitor = function(visitorId, name) {

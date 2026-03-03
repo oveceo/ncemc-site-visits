@@ -717,6 +717,26 @@ def api_archive_completed():
     return jsonify({"success": True, "archived": len(rows)})
 
 
+@app.route("/api/dashboard/archive-one/<int:checkin_id>", methods=["POST"])
+@token_required
+def api_archive_one(checkin_id):
+    """Archive a single check-in record."""
+    db = get_db()
+    now_ts = datetime.now().isoformat()
+    row = db.execute("""
+        SELECT c.*, v.name as visitor_name, v.company
+        FROM checkins c JOIN visitors v ON v.id = c.visitor_id
+        WHERE c.id = ? AND c.archived_at IS NULL
+    """, (checkin_id,)).fetchone()
+    if not row:
+        return jsonify({"error": "Record not found or already archived"}), 404
+    db.execute("UPDATE checkins SET archived_at = ? WHERE id = ?", (now_ts, checkin_id))
+    db.commit()
+    audit("archive_one", f"#{checkin_id} — {row['visitor_name']} ({row['company']}) archived individually", "staff")
+    notify_dashboard("archive", {"id": checkin_id, "visitor_name": row["visitor_name"]})
+    return jsonify({"success": True})
+
+
 @app.route("/api/dashboard/archive")
 @token_required
 def api_list_archive():
