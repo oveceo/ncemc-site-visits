@@ -610,6 +610,19 @@ label {
     .stat-label { font-size: 0.7rem; }
 }
 
+/* Mode selection buttons */
+.mode-buttons { display: flex; flex-direction: column; gap: 16px; margin-top: 1.5rem; }
+.mode-btn { display: flex; align-items: center; justify-content: center; gap: 12px;
+            font-size: 1.2rem; padding: 18px 24px; letter-spacing: 0.5px; }
+.mode-btn svg { flex-shrink: 0; }
+
+/* Checkout list */
+.checkout-list { display: flex; flex-direction: column; gap: 6px; max-height: 400px;
+                 overflow-y: auto; margin-top: 1rem; }
+.checkout-list .result-item { width: 100%; text-align: left; }
+.checkout-list .no-results { text-align: center; color: var(--text-muted);
+                             padding: 2rem 1rem; font-size: 0.95rem; }
+
 @media print {
     .qr-links { display: none; }
     .qr-body { background: #fff; color: #000; }

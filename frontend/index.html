@@ -10,8 +10,8 @@
 </head>
 <body class="checkin-body">
 
-    <!-- ===== STEP 1: Select Company ===== -->
-    <div id="step-company" class="step active">
+    <!-- ===== STEP 0: Check In or Check Out ===== -->
+    <div id="step-mode" class="step active">
         <div class="card">
             <div class="logo-header">
                 <div class="logo-icon">
@@ -20,9 +20,94 @@
                     </svg>
                 </div>
                 <h1>NCEMC Site Visit</h1>
-                <p class="subtitle">Self-Service Check-In</p>
+                <p class="subtitle">Welcome! What would you like to do?</p>
             </div>
 
+            <div class="mode-buttons">
+                <button id="btn-mode-checkin" class="btn btn-primary btn-big full-width mode-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="28" height="28">
+                        <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"/>
+                        <polyline points="10 17 15 12 10 7"/>
+                        <line x1="15" y1="12" x2="3" y2="12"/>
+                    </svg>
+                    CHECK IN
+                </button>
+                <button id="btn-mode-checkout" class="btn btn-outline btn-big full-width mode-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="28" height="28">
+                        <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+                        <polyline points="16 17 21 12 16 7"/>
+                        <line x1="21" y1="12" x2="9" y2="12"/>
+                    </svg>
+                    CHECK OUT
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== CHECKOUT: Select Company ===== -->
+    <div id="step-co-company" class="step">
+        <div class="card">
+            <button class="back-arrow" id="back-to-mode-from-co">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+            </button>
+            <div class="logo-header" style="margin-bottom:0.5rem">
+                <h2 style="margin:0">Check Out</h2>
+                <p class="subtitle">Select your company</p>
+            </div>
+            <div id="co-company-list" class="checkout-list">
+                <div class="no-results">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== CHECKOUT: Select Person ===== -->
+    <div id="step-co-person" class="step">
+        <div class="card">
+            <button class="back-arrow" id="back-to-co-company">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+            </button>
+            <div class="company-badge">
+                <span class="badge-label">Company</span>
+                <span class="badge-value" id="co-badge-company"></span>
+            </div>
+            <p class="step-desc">Select your name to check out</p>
+            <div id="co-person-list" class="checkout-list">
+                <div class="no-results">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== CHECKOUT: Done ===== -->
+    <div id="step-co-done" class="step">
+        <div class="card confirm-card">
+            <div class="confirm-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                    <path d="M20 6L9 17l-5-5"/>
+                </svg>
+            </div>
+            <h2>You're Checked Out!</h2>
+            <div class="confirm-details">
+                <div class="confirm-row"><span class="confirm-label">Name</span><span class="confirm-value" id="co-done-name"></span></div>
+                <div class="confirm-row"><span class="confirm-label">Time Out</span><span class="confirm-value" id="co-done-time"></span></div>
+            </div>
+            <p class="confirm-note">Have a great day!</p>
+            <button id="btn-co-done" class="btn btn-primary full-width">Done</button>
+        </div>
+    </div>
+
+    <!-- ===== STEP 1: Select Company ===== -->
+    <div id="step-company" class="step">
+        <div class="card">
+            <button class="back-arrow" id="back-to-mode-from-ci">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+            </button>
+            <h2 style="margin:0 0 0.25rem 0">Check In</h2>
             <div class="step-indicator">Step 1 of 3</div>
 
             <div class="form-group">
@@ -270,6 +355,10 @@
 
         const $ = id => document.getElementById(id);
         const steps = {
+            mode:       $('step-mode'),
+            coCompany:  $('step-co-company'),
+            coPerson:   $('step-co-person'),
+            coDone:     $('step-co-done'),
             company:    $('step-company'),
             newCompany: $('step-new-company'),
             name:       $('step-name'),
@@ -278,6 +367,91 @@
             confirm:    $('step-confirm'),
             already:    $('step-already'),
         };
+
+        // ---- Mode selection ----
+        $('btn-mode-checkin').addEventListener('click', () => { showStep(steps.company); });
+        $('btn-mode-checkout').addEventListener('click', startCheckoutFlow);
+        $('back-to-mode-from-ci').addEventListener('click', () => { resetAll(); });
+        $('back-to-mode-from-co').addEventListener('click', () => { showStep(steps.mode); });
+
+        // ---- Checkout flow ----
+        function startCheckoutFlow() {
+            const list = $('co-company-list');
+            list.innerHTML = '<div class="no-results">Loading...</div>';
+            showStep(steps.coCompany);
+            fetch(window.API_URL + '/api/active-companies').then(r => r.json()).then(companies => {
+                if (companies.length === 0) {
+                    list.innerHTML = '<div class="no-results">No one is currently checked in.</div>';
+                    return;
+                }
+                list.innerHTML = companies.map(c => `
+                    <button class="result-item company-result co-company-item" data-company="${esc(c)}">
+                        <span class="result-avatar co-avatar">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                                <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+                                <polyline points="9 22 9 12 15 12 15 22"/>
+                            </svg>
+                        </span>
+                        <span class="result-name">${esc(c)}</span>
+                    </button>
+                `).join('');
+            }).catch(() => { list.innerHTML = '<div class="no-results">Connection error. Please try again.</div>'; });
+        }
+
+        $('co-company-list').addEventListener('click', e => {
+            const item = e.target.closest('.co-company-item');
+            if (!item) return;
+            loadCheckoutPeople(item.dataset.company);
+        });
+
+        function loadCheckoutPeople(company) {
+            $('co-badge-company').textContent = company;
+            const list = $('co-person-list');
+            list.innerHTML = '<div class="no-results">Loading...</div>';
+            showStep(steps.coPerson);
+            fetch(window.API_URL + '/api/active-visitors/' + encodeURIComponent(company)).then(r => r.json()).then(visitors => {
+                if (visitors.length === 0) {
+                    list.innerHTML = '<div class="no-results">No active visitors for this company.</div>';
+                    return;
+                }
+                list.innerHTML = visitors.map(v => `
+                    <button class="result-item co-person-item" data-vid="${v.visitor_id}" data-name="${esc(v.name)}">
+                        <span class="result-avatar">${initials(v.name)}</span>
+                        <span class="result-info">
+                            <span class="result-name">${esc(v.name)}</span>
+                            <span class="result-company">Checked in at ${esc(v.time_in)} — ${esc(v.site)}</span>
+                        </span>
+                    </button>
+                `).join('');
+            }).catch(() => { list.innerHTML = '<div class="no-results">Connection error. Please try again.</div>'; });
+        }
+
+        $('back-to-co-company').addEventListener('click', () => startCheckoutFlow());
+
+        $('co-person-list').addEventListener('click', e => {
+            const item = e.target.closest('.co-person-item');
+            if (!item) return;
+            const vid = item.dataset.vid;
+            const name = item.dataset.name;
+            item.innerHTML = '<span class="spinner"></span> Checking out...';
+            item.disabled = true;
+            fetch(window.API_URL + '/api/checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ visitor_id: parseInt(vid) })
+            }).then(r => r.json()).then(data => {
+                if (data.success) {
+                    $('co-done-name').textContent = name;
+                    $('co-done-time').textContent = data.time_out;
+                    showStep(steps.coDone);
+                } else {
+                    alert(data.error || 'Checkout failed.');
+                    startCheckoutFlow();
+                }
+            }).catch(() => { alert('Connection error.'); startCheckoutFlow(); });
+        });
+
+        $('btn-co-done').addEventListener('click', resetAll);
 
         const companyInput = $('company-search');
         const companyResults = $('company-results');
@@ -460,19 +634,27 @@
             btnCheckin.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22"><path d="M5 13l4 4L19 7"/></svg> CHECK IN';
         }
 
-        $('btn-checkout').addEventListener('click', doCheckout);
-        $('btn-already-checkout').addEventListener('click', doCheckout);
-        function doCheckout() {
+        $('btn-already-checkout').addEventListener('click', function() {
             if (!selectedVisitor || !selectedVisitor.id) { alert('Unable to check out. Please contact the control room.'); return; }
+            this.disabled = true; this.innerHTML = '<span class="spinner"></span> Checking out...';
             fetch(window.API_URL + '/api/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ visitor_id: selectedVisitor.id }) })
             .then(r => r.json()).then(data => {
-                if (data.success) { alert('Checked out at ' + data.time_out + '. Have a great day!'); resetAll(); }
-                else { alert(data.error || 'Checkout failed.'); }
-            });
-        }
+                if (data.success) { $('co-done-name').textContent = selectedVisitor.name || ''; $('co-done-time').textContent = data.time_out; showStep(steps.coDone); }
+                else { alert(data.error || 'Checkout failed.'); this.disabled = false; this.textContent = 'CHECK OUT NOW'; }
+            }).catch(() => { alert('Connection error.'); this.disabled = false; this.textContent = 'CHECK OUT NOW'; });
+        });
 
         $('btn-already-cancel').addEventListener('click', () => showStep(steps.name));
         $('btn-new').addEventListener('click', resetAll);
+        $('btn-checkout').addEventListener('click', function() {
+            if (!selectedVisitor || !selectedVisitor.id) { alert('Unable to check out. Please contact the control room.'); return; }
+            this.disabled = true; this.innerHTML = '<span class="spinner"></span> Checking out...';
+            fetch(window.API_URL + '/api/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ visitor_id: selectedVisitor.id }) })
+            .then(r => r.json()).then(data => {
+                if (data.success) { $('co-done-name').textContent = selectedVisitor.name || ''; $('co-done-time').textContent = data.time_out; showStep(steps.coDone); }
+                else { alert(data.error || 'Checkout failed.'); this.disabled = false; this.textContent = 'CHECK OUT WHEN DONE'; }
+            }).catch(() => { alert('Connection error.'); this.disabled = false; this.textContent = 'CHECK OUT WHEN DONE'; });
+        });
 
         function showStep(step) { Object.values(steps).forEach(s => s.classList.remove('active')); step.classList.add('active'); window.scrollTo(0, 0); }
         function resetAll() {
@@ -481,7 +663,7 @@
             newCompanyInput.value = ''; notesInput.value = '';
             siteSelect.innerHTML = '<option value="">Select a site...</option>';
             reasonSelect.innerHTML = '<option value="">Select reason...</option>';
-            btnCheckin.disabled = true; resetCheckinBtn(); showStep(steps.company);
+            btnCheckin.disabled = true; resetCheckinBtn(); showStep(steps.mode);
         }
         function initials(name) { return (name || '??').split(' ').map(w => w[0] || '').join('').toUpperCase().slice(0, 2); }
         function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }

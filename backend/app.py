@@ -549,6 +549,41 @@ def api_checkout_self():
     return jsonify({"success": True, "time_out": now})
 
 
+@app.route("/api/active-companies")
+def api_active_companies():
+    if check_rate_limit():
+        return jsonify({"error": "Rate limited"}), 429
+    db = get_db()
+    today = date.today().isoformat()
+    rows = db.execute("""
+        SELECT DISTINCT v.company
+        FROM checkins c JOIN visitors v ON v.id = c.visitor_id
+        WHERE c.time_out IS NULL AND c.date_stamp = ?
+        ORDER BY v.company
+    """, (today,)).fetchall()
+    return jsonify([r["company"] for r in rows])
+
+
+@app.route("/api/active-visitors/<path:company>")
+def api_active_visitors(company):
+    if check_rate_limit():
+        return jsonify({"error": "Rate limited"}), 429
+    db = get_db()
+    today = date.today().isoformat()
+    rows = db.execute("""
+        SELECT c.id as checkin_id, c.time_in, c.site, v.id as visitor_id,
+               v.name, v.company, v.phone
+        FROM checkins c JOIN visitors v ON v.id = c.visitor_id
+        WHERE c.time_out IS NULL AND c.date_stamp = ? AND v.company = ?
+        ORDER BY v.name
+    """, (today, company)).fetchall()
+    return jsonify([{
+        "checkin_id": r["checkin_id"], "visitor_id": r["visitor_id"],
+        "name": r["name"], "company": r["company"], "phone": r["phone"],
+        "time_in": r["time_in"], "site": r["site"],
+    } for r in rows])
+
+
 @app.route("/api/check-status/<int:visitor_id>")
 def api_check_status(visitor_id):
     if check_rate_limit():
