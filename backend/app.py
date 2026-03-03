@@ -1205,11 +1205,17 @@ def health():
 
 
 # ---------------------------------------------------------------------------
-# Startup — runs whether launched via gunicorn or python directly
+# Startup — deferred to first request so it works with gunicorn --preload
 # ---------------------------------------------------------------------------
 import sys
 
-def _startup():
+_db_initialized = False
+
+def _ensure_db():
+    global _db_initialized
+    if _db_initialized:
+        return
+    _db_initialized = True
     try:
         print("[STARTUP] Initializing database...", flush=True)
         init_db()
@@ -1222,9 +1228,12 @@ def _startup():
         traceback.print_exc()
         sys.stderr.flush()
 
-_startup()
+@app.before_request
+def _before_request_init():
+    _ensure_db()
 
 if __name__ == "__main__":
+    _ensure_db()
     port = int(os.environ.get("PORT", 5000))
     print(f"\n  NCEMC API running on port {port}")
     print(f"  Frontend URL: {FRONTEND_URL}\n")
