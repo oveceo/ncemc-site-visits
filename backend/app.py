@@ -970,11 +970,12 @@ def health():
 
 
 # ---------------------------------------------------------------------------
-# Main
+# Startup — runs whether launched via gunicorn or python directly
 # ---------------------------------------------------------------------------
+init_db()
+import_from_excel()
+
 if __name__ == "__main__":
-    init_db()
-    import_from_excel()
     port = int(os.environ.get("PORT", 5000))
     print(f"\n  NCEMC API running on port {port}")
     print(f"  Frontend URL: {FRONTEND_URL}\n")
