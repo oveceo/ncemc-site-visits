@@ -81,6 +81,36 @@
         </div>
     </div>
 
+    <!-- ===== CHECKOUT: Confirm ===== -->
+    <div id="step-co-confirm" class="step">
+        <div class="card">
+            <button class="back-arrow" id="back-to-co-person">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+            </button>
+            <h2 style="margin:0 0 0.5rem 0">Confirm Check Out</h2>
+            <p class="step-desc">Please verify this is you before checking out.</p>
+
+            <div id="co-confirm-summary" class="visitor-badge-card">
+                <div class="visitor-avatar" id="co-confirm-avatar"></div>
+                <div class="visitor-info">
+                    <span class="visitor-name" id="co-confirm-name"></span>
+                    <span class="visitor-company" id="co-confirm-company"></span>
+                    <span class="visitor-phone" id="co-confirm-detail"></span>
+                </div>
+            </div>
+
+            <button id="btn-co-confirm" class="btn btn-primary btn-big full-width">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22">
+                    <path d="M5 13l4 4L19 7"/>
+                </svg>
+                YES, CHECK ME OUT
+            </button>
+            <button id="btn-co-cancel" class="btn btn-link full-width">That's not me</button>
+        </div>
+    </div>
+
     <!-- ===== CHECKOUT: Done ===== -->
     <div id="step-co-done" class="step">
         <div class="card confirm-card">
@@ -358,6 +388,7 @@
             mode:       $('step-mode'),
             coCompany:  $('step-co-company'),
             coPerson:   $('step-co-person'),
+            coConfirm:  $('step-co-confirm'),
             coDone:     $('step-co-done'),
             company:    $('step-company'),
             newCompany: $('step-new-company'),
@@ -415,7 +446,7 @@
                     return;
                 }
                 list.innerHTML = visitors.map(v => `
-                    <button class="result-item co-person-item" data-vid="${v.visitor_id}" data-name="${esc(v.name)}">
+                    <button class="result-item co-person-item" data-vid="${v.visitor_id}" data-name="${esc(v.name)}" data-detail="Checked in at ${esc(v.time_in)} — ${esc(v.site)}">
                         <span class="result-avatar">${initials(v.name)}</span>
                         <span class="result-info">
                             <span class="result-name">${esc(v.name)}</span>
@@ -426,30 +457,55 @@
             }).catch(() => { list.innerHTML = '<div class="no-results">Connection error. Please try again.</div>'; });
         }
 
+        let coSelectedPerson = null;
+
         $('back-to-co-company').addEventListener('click', () => startCheckoutFlow());
 
         $('co-person-list').addEventListener('click', e => {
             const item = e.target.closest('.co-person-item');
             if (!item) return;
-            const vid = item.dataset.vid;
-            const name = item.dataset.name;
-            item.innerHTML = '<span class="spinner"></span> Checking out...';
-            item.disabled = true;
+            coSelectedPerson = {
+                vid: parseInt(item.dataset.vid),
+                name: item.dataset.name,
+                company: $('co-badge-company').textContent,
+                detail: item.dataset.detail
+            };
+            $('co-confirm-avatar').textContent = initials(coSelectedPerson.name);
+            $('co-confirm-name').textContent = coSelectedPerson.name;
+            $('co-confirm-company').textContent = coSelectedPerson.company;
+            $('co-confirm-detail').textContent = coSelectedPerson.detail;
+            showStep(steps.coConfirm);
+        });
+
+        $('back-to-co-person').addEventListener('click', () => loadCheckoutPeople($('co-badge-company').textContent));
+        $('btn-co-cancel').addEventListener('click', () => loadCheckoutPeople($('co-badge-company').textContent));
+
+        $('btn-co-confirm').addEventListener('click', function() {
+            if (!coSelectedPerson) return;
+            this.disabled = true;
+            this.innerHTML = '<span class="spinner"></span> Checking out...';
             fetch(window.API_URL + '/api/checkout', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ visitor_id: parseInt(vid) })
+                body: JSON.stringify({ visitor_id: coSelectedPerson.vid })
             }).then(r => r.json()).then(data => {
                 if (data.success) {
-                    $('co-done-name').textContent = name;
+                    $('co-done-name').textContent = coSelectedPerson.name;
                     $('co-done-time').textContent = data.time_out;
                     showStep(steps.coDone);
                 } else {
                     alert(data.error || 'Checkout failed.');
                     startCheckoutFlow();
                 }
-            }).catch(() => { alert('Connection error.'); startCheckoutFlow(); });
+                resetCoConfirmBtn();
+            }).catch(() => { alert('Connection error.'); startCheckoutFlow(); resetCoConfirmBtn(); });
         });
+
+        function resetCoConfirmBtn() {
+            const btn = $('btn-co-confirm');
+            btn.disabled = false;
+            btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22"><path d="M5 13l4 4L19 7"/></svg> YES, CHECK ME OUT';
+        }
 
         $('btn-co-done').addEventListener('click', resetAll);
 
