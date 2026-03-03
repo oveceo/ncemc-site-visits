@@ -740,13 +740,14 @@ def api_export_pdf():
     """, (date_from, date_to)).fetchall()
 
     pdf = FPDF(orientation="L", unit="mm", format="Letter")
+    # Adjust margins to allow for the logo header
     pdf.set_auto_page_break(auto=True, margin=15)
 
     cols = [
-        ("#", 7), ("Name", 30), ("Company", 28), ("Phone", 22), ("Site", 28),
-        ("Est.", 12), ("Reason", 22), ("Time In", 14), ("UAR #", 14),
-        ("Time Out", 14), ("Tkt Clsd", 13), ("Alarms", 13),
-        ("Alarm Detail", 20), ("Notes", 24), ("Done", 10),
+        ("Today's Visitor Log", 26), ("Company", 25), ("Phone", 22), ("Site", 25),
+        ("Est. Time", 12), ("Reason", 18), ("Time In", 14), ("UAR #", 14),
+        ("Time Out", 14), ("Ticket Closed", 13), ("Alarms Clear", 13),
+        ("Specify Alarm If Not Clear", 26), ("Notes", 38), ("Complete", 13),
     ]
 
     dates_in_range = set(r["date_stamp"] for r in rows)
@@ -757,44 +758,137 @@ def api_export_pdf():
         day_rows = [r for r in rows if r["date_stamp"] == d]
         pdf.add_page()
 
-        pdf.set_font("Helvetica", "B", 16)
-        pdf.cell(0, 10, "Visitor List", ln=True, align="C")
+        # Add logos if they exist
+        ncemc_logo = os.path.join(BASE_DIR, "ncemc.png")
+        ovec_logo = os.path.join(BASE_DIR, "ovec.png")
+        
+        if os.path.exists(ncemc_logo):
+            pdf.image(ncemc_logo, x=10, y=8, w=60)
+        if os.path.exists(ovec_logo):
+            pdf.image(ovec_logo, x=210, y=8, w=60)
 
+        # Title and Date
+        pdf.set_y(15)
+        pdf.set_font("Helvetica", "", 16)
+        pdf.cell(0, 8, "Visitor List", ln=True, align="C")
+        
         try:
-            display_date = datetime.strptime(d, "%Y-%m-%d").strftime("%B %d, %Y")
+            display_date = datetime.strptime(d, "%Y-%m-%d").strftime("%-m/%-d/%Y")
         except Exception:
             display_date = d
-        pdf.set_font("Helvetica", "", 11)
-        pdf.cell(0, 8, display_date, ln=True, align="C")
-        pdf.ln(4)
+        pdf.set_font("Helvetica", "", 10)
+        pdf.cell(0, 6, display_date, ln=True, align="C")
+        pdf.ln(8)
 
-        pdf.set_font("Helvetica", "B", 6.5)
-        pdf.set_fill_color(30, 41, 59)
-        pdf.set_text_color(241, 245, 249)
-        for name, w in cols:
-            pdf.cell(w, 7, name, border=1, fill=True, align="C")
-        pdf.ln()
-
-        pdf.set_font("Helvetica", "", 6)
+        # Header Row (Light Blue)
+        pdf.set_font("Helvetica", "B", 7)
+        pdf.set_fill_color(189, 215, 238) # Light blue matching Excel
         pdf.set_text_color(0, 0, 0)
+        
+        start_y = pdf.get_y()
+        max_h = 8
+        for name, w in cols:
+            x = pdf.get_x()
+            y = pdf.get_y()
+            if "Specify Alarm" in name or "Ticket Closed" in name or "Alarms Clear" in name or "Today" in name:
+                parts = name.split(" ")
+                if len(parts) > 2 and "Specify" in name:
+                    h_text = "Specify Alarm\nIf Not Clear"
+                elif "Today" in name:
+                    h_text = "Today's\nVisitor Log"
+                else:
+                    h_text = parts[0] + "\n" + parts[1]
+                
+                pdf.multi_cell(w, 4, h_text, border=1, fill=True, align="C")
+                pdf.set_xy(x + w, start_y)
+            else:
+                pdf.cell(w, 8, name, border=1, fill=True, align="C")
+        pdf.ln(8)
+
+        # Rows
+        pdf.set_font("Helvetica", "", 7)
         for i, r in enumerate(day_rows, 1):
-            pdf.set_fill_color(240, 240, 245) if i % 2 == 0 else pdf.set_fill_color(255, 255, 255)
+            # Alternating colors: white and very light blue/gray
+            if i % 2 == 0:
+                pdf.set_fill_color(255, 255, 255)
+            else:
+                pdf.set_fill_color(240, 245, 250)
+                
             vals = [
-                str(i), (r["visitor_name"] or "")[:20], (r["company"] or "")[:18],
-                (r["phone"] or "")[:15], (r["site"] or "")[:18],
-                (r["estimated_time"] or "")[:7], (r["reason"] or "")[:15],
-                r["time_in"] or "", (r["uar_number"] or "")[:10],
-                r["time_out"] or "", (r["ticket_closed"] or ""),
-                (r["alarms_clear"] or ""), (r["alarm_details"] or "")[:15],
-                (r["notes"] or "")[:18], "Y" if r["complete"] else "",
+                (r["visitor_name"] or "")[:20], 
+                (r["company"] or "")[:20],
+                (r["phone"] or "")[:15], 
+                (r["site"] or "")[:20],
+                (r["estimated_time"] or "")[:7], 
+                (r["reason"] or "")[:15],
+                r["time_in"] or "", 
+                (r["uar_number"] or "")[:10],
+                r["time_out"] or "", 
+                r["ticket_closed"] or "", 
+                r["alarms_clear"] or "", 
+                (r["alarm_details"] or "")[:20],
+                (r["notes"] or "")[:35], 
+                "Y" if r["complete"] else ""
             ]
-            for (_, w), val in zip(cols, vals):
-                pdf.cell(w, 6, val, border=1, fill=True)
+            
+            for j, ((_, w), val) in enumerate(zip(cols, vals)):
+                # Draw checkbox for Time In, Time Out, Ticket Closed, Alarms Clear, Complete
+                if j in [6, 8, 9, 10, 13]: # Indices of checkbox columns
+                    x = pdf.get_x()
+                    y = pdf.get_y()
+                    pdf.cell(w, 6, "", border=1, fill=True)
+                    
+                    # Draw a small checkbox square
+                    box_size = 3
+                    
+                    # If this is time_in or time_out, align box to left and put text next to it
+                    if j in [6, 8]:
+                        box_x = x + 2
+                        box_y = y + (6 - box_size) / 2
+                        pdf.rect(box_x, box_y, box_size, box_size)
+                        if val:
+                            pdf.set_xy(x + 2 + box_size + 1, y)
+                            pdf.cell(w - (box_size + 3), 6, val, border=0, fill=False)
+                    else:
+                        # Center the box for Ticket Closed, Alarms Clear, Complete
+                        box_x = x + (w - box_size) / 2
+                        box_y = y + (6 - box_size) / 2
+                        pdf.rect(box_x, box_y, box_size, box_size)
+                        # Check it if there's a value
+                        if val:
+                            # Draw checkmark inside the box
+                            pdf.line(box_x + 0.5, box_y + 1.5, box_x + 1.5, box_y + 2.5)
+                            pdf.line(box_x + 1.5, box_y + 2.5, box_x + 2.5, box_y + 0.5)
+                    
+                    pdf.set_xy(x + w, y)
+                else:
+                    pdf.cell(w, 6, val, border=1, fill=True)
             pdf.ln()
 
-        if not day_rows:
-            pdf.set_font("Helvetica", "I", 10)
-            pdf.cell(0, 12, "No visits recorded for this date.", ln=True, align="C")
+        # Add empty rows to match Excel look if there are few visitors
+        empty_rows_to_add = max(0, 15 - len(day_rows))
+        for i in range(len(day_rows) + 1, len(day_rows) + 1 + empty_rows_to_add):
+            if i % 2 == 0:
+                pdf.set_fill_color(255, 255, 255)
+            else:
+                pdf.set_fill_color(240, 245, 250)
+                
+            for j, (_, w) in enumerate(cols):
+                if j in [6, 8, 9, 10, 13]:
+                    x = pdf.get_x()
+                    y = pdf.get_y()
+                    pdf.cell(w, 6, "", border=1, fill=True)
+                    box_size = 3
+                    if j in [6, 8]:
+                        box_x = x + 2
+                    else:
+                        box_x = x + (w - box_size) / 2
+                    box_y = y + (6 - box_size) / 2
+                    pdf.rect(box_x, box_y, box_size, box_size)
+                    pdf.set_xy(x + w, y)
+                else:
+                    pdf.cell(w, 6, "", border=1, fill=True)
+            pdf.ln()
 
         pdf.ln(4)
         pdf.set_font("Helvetica", "I", 8)
