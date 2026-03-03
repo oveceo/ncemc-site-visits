@@ -164,6 +164,21 @@
         </div>
     </div>
 
+    <!-- Confirm Dialog -->
+    <div id="confirm-modal" class="modal" style="display:none">
+        <div class="modal-backdrop" id="confirm-backdrop"></div>
+        <div class="modal-content confirm-dialog">
+            <div class="confirm-icon" id="confirm-icon"></div>
+            <h3 id="confirm-title">Are you sure?</h3>
+            <p id="confirm-message"></p>
+            <p class="confirm-warning" id="confirm-warning"></p>
+            <div class="confirm-actions">
+                <button class="btn btn-secondary" id="confirm-no">Cancel</button>
+                <button class="btn" id="confirm-yes">Confirm</button>
+            </div>
+        </div>
+    </div>
+
     <div id="toast-container"></div>
 
     <script src="/js/config.js"></script>
@@ -183,6 +198,43 @@
         const completedList = document.getElementById('completed-list');
         const emptyActiveHTML = document.getElementById('empty-active').outerHTML;
         const sectionActive = document.getElementById('section-active');
+
+        function showConfirm(opts) {
+            return new Promise(function(resolve) {
+                const m = document.getElementById('confirm-modal');
+                const icon = document.getElementById('confirm-icon');
+                const title = document.getElementById('confirm-title');
+                const msg = document.getElementById('confirm-message');
+                const warn = document.getElementById('confirm-warning');
+                const yesBtn = document.getElementById('confirm-yes');
+                const noBtn = document.getElementById('confirm-no');
+
+                icon.className = 'confirm-icon ' + (opts.iconClass || 'icon-warning');
+                icon.innerHTML = opts.icon || '⚠️';
+                title.textContent = opts.title || 'Are you sure?';
+                msg.innerHTML = opts.message || '';
+                warn.textContent = opts.warning || '';
+                warn.style.display = opts.warning ? 'block' : 'none';
+                yesBtn.textContent = opts.confirmText || 'Confirm';
+                yesBtn.className = 'btn ' + (opts.confirmClass || 'btn-danger');
+
+                m.style.display = 'flex';
+
+                function close(result) {
+                    m.style.display = 'none';
+                    yesBtn.removeEventListener('click', onYes);
+                    noBtn.removeEventListener('click', onNo);
+                    document.getElementById('confirm-backdrop').removeEventListener('click', onNo);
+                    resolve(result);
+                }
+                function onYes() { close(true); }
+                function onNo() { close(false); }
+
+                yesBtn.addEventListener('click', onYes);
+                noBtn.addEventListener('click', onNo);
+                document.getElementById('confirm-backdrop').addEventListener('click', onNo);
+            });
+        }
 
         document.getElementById('btn-logout').addEventListener('click', () => api.logout());
 
@@ -341,7 +393,11 @@
 
             es.addEventListener('archive', e => {
                 const data = JSON.parse(e.data);
-                checkins = checkins.filter(c => !(c.time_out || c.complete));
+                if (data.id) {
+                    checkins = checkins.filter(c => c.id !== data.id);
+                } else {
+                    checkins = checkins.filter(c => !(c.time_out || c.complete));
+                }
                 renderAll();
             });
 
@@ -452,28 +508,43 @@
         window.archiveOne = function(id, btn) {
             const ci = checkins.find(c => c.id === id);
             if (!ci) return;
-            if (!confirm('Archive ' + (ci.visitor_name || 'this record') + '?\n\nIt will be stored in the 7-day archive and can be restored from there.')) return;
-            btn.disabled = true; btn.textContent = 'Archiving...';
-            api.postJSON('/api/dashboard/archive-one/' + id, {}).then(data => {
-                if (data.success) {
-                    checkins = checkins.filter(c => c.id !== id);
-                    renderAll();
-                    showToast((ci.visitor_name || 'Record') + ' archived.', 'checkout');
-                } else {
-                    alert(data.error || 'Archive failed.');
-                    btn.disabled = false; btn.textContent = 'Archive';
-                }
+            showConfirm({
+                icon: '🗃️', iconClass: 'icon-warning',
+                title: 'Archive this visit?',
+                message: '<strong>' + esc(ci.visitor_name) + '</strong> (' + esc(ci.company) + ') will be removed from the dashboard.',
+                warning: 'Archived records are kept for 7 days and can be restored from the Archive panel.',
+                confirmText: 'Archive', confirmClass: 'btn-warning'
+            }).then(function(ok) {
+                if (!ok) return;
+                btn.disabled = true; btn.textContent = 'Archiving...';
+                api.postJSON('/api/dashboard/archive-one/' + id, {}).then(data => {
+                    if (data.success) {
+                        checkins = checkins.filter(c => c.id !== id);
+                        renderAll();
+                        showToast((ci.visitor_name || 'Record') + ' archived.', 'checkout');
+                    } else {
+                        showToast(data.error || 'Archive failed.', 'checkout');
+                        btn.disabled = false; btn.textContent = 'Archive';
+                    }
+                });
             });
         };
 
         window.approveVisitor = function(visitorId, name) {
-            if (!confirm('Add ' + name + ' to the permanent visitor directory?')) return;
-            api.fetch('/api/dashboard/approve/' + visitorId, { method: 'POST' }).then(r => r.json()).then(data => {
-                if (data.success) {
-                    showToast(data.message, 'checkout');
-                    checkins.forEach(c => { if (c.visitor_id === visitorId) { c.approved = 1; c.is_walkin = 0; } });
-                    renderAll();
-                }
+            showConfirm({
+                icon: '✅', iconClass: 'icon-warning',
+                title: 'Add to Directory?',
+                message: 'Add <strong>' + esc(name) + '</strong> to the permanent visitor directory?',
+                confirmText: 'Add to Directory', confirmClass: 'btn-primary'
+            }).then(function(ok) {
+                if (!ok) return;
+                api.fetch('/api/dashboard/approve/' + visitorId, { method: 'POST' }).then(r => r.json()).then(data => {
+                    if (data.success) {
+                        showToast(data.message, 'checkout');
+                        checkins.forEach(c => { if (c.visitor_id === visitorId) { c.approved = 1; c.is_walkin = 0; } });
+                        renderAll();
+                    }
+                });
             });
         };
 
@@ -529,15 +600,23 @@
             e.stopPropagation();
             const completed = checkins.filter(c => c.time_out || c.complete);
             if (completed.length === 0) { showToast('Nothing to archive.', 'checkout'); return; }
-            if (!confirm(`Archive ${completed.length} completed visit(s) from the dashboard?\n\nThey will be stored in the 7-day archive and can be restored from there.`)) return;
-            api.postJSON('/api/dashboard/archive', { date: currentFrom }).then(data => {
-                if (data.success) {
-                    checkins = checkins.filter(c => !c.time_out && !c.complete);
-                    renderAll();
-                    showToast(`${data.archived} record(s) archived.`, 'checkout');
-                } else {
-                    showToast(data.message || data.error || 'Archive failed.', 'checkout');
-                }
+            showConfirm({
+                icon: '🗃️', iconClass: 'icon-danger',
+                title: 'Archive All Completed?',
+                message: 'This will archive <strong>' + completed.length + ' completed visit(s)</strong> from the dashboard.',
+                warning: 'Archived records are kept for 7 days and can be restored from the Archive panel.',
+                confirmText: 'Archive All', confirmClass: 'btn-danger'
+            }).then(function(ok) {
+                if (!ok) return;
+                api.postJSON('/api/dashboard/archive', { date: currentFrom }).then(data => {
+                    if (data.success) {
+                        checkins = checkins.filter(c => !c.time_out && !c.complete);
+                        renderAll();
+                        showToast(data.archived + ' record(s) archived.', 'checkout');
+                    } else {
+                        showToast(data.message || data.error || 'Archive failed.', 'checkout');
+                    }
+                });
             });
         });
 
@@ -597,7 +676,7 @@
                     openArchiveDrawer();
                     loadCheckins();
                 } else {
-                    alert(data.error || 'Restore failed.');
+                    showToast(data.error || 'Restore failed.', 'checkout');
                     btn.disabled = false; btn.textContent = 'Restore';
                 }
             });
