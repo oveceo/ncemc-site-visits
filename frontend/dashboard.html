@@ -33,7 +33,7 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="opacity:0.6;flex-shrink:0">
                     <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
                 </svg>
-                <input type="range" id="volume-slider" min="0" max="100" value="80" title="Alert volume">
+                <input type="range" id="volume-slider" min="0" max="100" value="100" title="Alert volume">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="opacity:0.6;flex-shrink:0">
                     <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
                     <path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/>
@@ -292,30 +292,64 @@
 
         function getVolume() { return parseFloat(volumeSlider.value) / 100; }
 
+        // Shared compressor so all tones go through a limiter/booster chain
+        const compressor = audioCtx.createDynamicsCompressor();
+        compressor.threshold.value = -6;
+        compressor.knee.value = 3;
+        compressor.ratio.value = 4;
+        compressor.attack.value = 0.001;
+        compressor.release.value = 0.1;
+
+        const masterGain = audioCtx.createGain();
+        masterGain.gain.value = 1;
+        compressor.connect(masterGain);
+        masterGain.connect(audioCtx.destination);
+
         function playTone(freq, type, startTime, duration, relativeVol) {
+            const vol = getVolume() * relativeVol * 3.0; // 3x multiplier for real loudness
+
+            // Primary oscillator
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.type = type;
             osc.frequency.value = freq;
-            const vol = Math.min(1, getVolume() * relativeVol);
-            gain.gain.setValueAtTime(vol, startTime);
+            gain.gain.setValueAtTime(0.001, startTime);
+            gain.gain.linearRampToValueAtTime(vol, startTime + 0.01); // sharp attack
+            gain.gain.setValueAtTime(vol, startTime + duration * 0.7);
             gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-            osc.connect(gain); gain.connect(audioCtx.destination);
-            osc.start(startTime); osc.stop(startTime + duration);
+            osc.connect(gain);
+            gain.connect(compressor);
+            osc.start(startTime);
+            osc.stop(startTime + duration);
+
+            // Detuned unison layer for thickness
+            const osc2 = audioCtx.createOscillator();
+            const gain2 = audioCtx.createGain();
+            osc2.type = type;
+            osc2.frequency.value = freq * 1.005; // slight detune
+            gain2.gain.setValueAtTime(0.001, startTime);
+            gain2.gain.linearRampToValueAtTime(vol * 0.6, startTime + 0.01);
+            gain2.gain.setValueAtTime(vol * 0.6, startTime + duration * 0.7);
+            gain2.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+            osc2.connect(gain2);
+            gain2.connect(compressor);
+            osc2.start(startTime);
+            osc2.stop(startTime + duration);
         }
 
         function playAlert(isWalkin) {
             if (!soundEnabled) return;
             if (audioCtx.state === 'suspended') audioCtx.resume();
+            masterGain.gain.setValueAtTime(getVolume(), audioCtx.currentTime);
             if (isWalkin) {
-                // Walk-in: urgent triple beep (triangle wave, ascending)
+                // Walk-in: urgent triple beep — square wave cuts through noise
                 [880, 1046.5, 1318.5].forEach((freq, i) => {
-                    playTone(freq, 'triangle', audioCtx.currentTime + i * 0.14, 0.3, 1.2);
+                    playTone(freq, 'square', audioCtx.currentTime + i * 0.16, 0.25, 1.0);
                 });
             } else {
-                // Regular check-in: friendly two-tone chime (sine, ascending)
-                [523.25, 783.99].forEach((freq, i) => {
-                    playTone(freq, 'sine', audioCtx.currentTime + i * 0.18, 0.5, 1.0);
+                // Regular check-in: two-tone chime
+                [659.25, 987.77].forEach((freq, i) => {
+                    playTone(freq, 'triangle', audioCtx.currentTime + i * 0.2, 0.45, 1.0);
                 });
             }
         }
@@ -323,9 +357,10 @@
         function playCheckoutSound() {
             if (!soundEnabled) return;
             if (audioCtx.state === 'suspended') audioCtx.resume();
-            // Checkout: descending two-tone (sine, going down — signals departure)
-            [783.99, 523.25].forEach((freq, i) => {
-                playTone(freq, 'sine', audioCtx.currentTime + i * 0.18, 0.5, 0.9);
+            masterGain.gain.setValueAtTime(getVolume(), audioCtx.currentTime);
+            // Checkout: descending two-tone
+            [987.77, 659.25].forEach((freq, i) => {
+                playTone(freq, 'triangle', audioCtx.currentTime + i * 0.2, 0.45, 0.85);
             });
         }
 
