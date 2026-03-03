@@ -847,8 +847,9 @@ def api_export_pdf():
                         box_y = y + (row_height - box_size) / 2
                         pdf.rect(box_x, box_y, box_size, box_size)
                         if val:
+                            pdf.line(box_x + 0.5, box_y + 1.5, box_x + 1.5, box_y + 2.5)
+                            pdf.line(box_x + 1.5, box_y + 2.5, box_x + 2.5, box_y + 0.5)
                             pdf.set_xy(box_x + box_size + 1.5, y)
-                            # Align to left within remaining space
                             pdf.cell(w - box_size - 3, row_height, val, border=0, align="L", fill=False)
                     else:
                         # Center the box for Ticket Closed, Alarms Clear, Complete
