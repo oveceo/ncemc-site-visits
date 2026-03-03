@@ -744,10 +744,10 @@ def api_export_pdf():
     pdf.set_auto_page_break(auto=True, margin=15)
 
     cols = [
-        ("Today's Visitor Log", 26), ("Company", 25), ("Phone", 22), ("Site", 25),
-        ("Est. Time", 12), ("Reason", 18), ("Time In", 14), ("UAR #", 14),
-        ("Time Out", 14), ("Ticket Closed", 13), ("Alarms Clear", 13),
-        ("Specify Alarm If Not Clear", 26), ("Notes", 38), ("Complete", 13),
+        ("Today's Visitor Log", 30), ("Company", 26), ("Phone", 18), ("Site", 24),
+        ("Est. Time", 12), ("Reason", 16), ("Time In", 16), ("UAR #", 14),
+        ("Time Out", 16), ("Ticket Closed", 12), ("Alarms Clear", 12),
+        ("Specify Alarm If Not Clear", 24), ("Notes", 27), ("Complete", 12),
     ]
 
     dates_in_range = set(r["date_stamp"] for r in rows)
@@ -786,7 +786,6 @@ def api_export_pdf():
         pdf.set_text_color(0, 0, 0)
         
         start_y = pdf.get_y()
-        max_h = 8
         for name, w in cols:
             x = pdf.get_x()
             y = pdf.get_y()
@@ -815,10 +814,10 @@ def api_export_pdf():
                 pdf.set_fill_color(240, 245, 250)
                 
             vals = [
-                (r["visitor_name"] or "")[:20], 
-                (r["company"] or "")[:20],
+                (r["visitor_name"] or "")[:25], 
+                (r["company"] or "")[:25],
                 (r["phone"] or "")[:15], 
-                (r["site"] or "")[:20],
+                (r["site"] or "")[:22],
                 (r["estimated_time"] or "")[:7], 
                 (r["reason"] or "")[:15],
                 r["time_in"] or "", 
@@ -826,33 +825,35 @@ def api_export_pdf():
                 r["time_out"] or "", 
                 r["ticket_closed"] or "", 
                 r["alarms_clear"] or "", 
-                (r["alarm_details"] or "")[:20],
+                (r["alarm_details"] or "")[:25],
                 (r["notes"] or "")[:35], 
                 "Y" if r["complete"] else ""
             ]
             
+            row_height = 7.5
             for j, ((_, w), val) in enumerate(zip(cols, vals)):
                 # Draw checkbox for Time In, Time Out, Ticket Closed, Alarms Clear, Complete
                 if j in [6, 8, 9, 10, 13]: # Indices of checkbox columns
                     x = pdf.get_x()
                     y = pdf.get_y()
-                    pdf.cell(w, 6, "", border=1, fill=True)
+                    pdf.cell(w, row_height, "", border=1, fill=True)
                     
                     # Draw a small checkbox square
                     box_size = 3
                     
                     # If this is time_in or time_out, align box to left and put text next to it
                     if j in [6, 8]:
-                        box_x = x + 2
-                        box_y = y + (6 - box_size) / 2
+                        box_x = x + 1.5
+                        box_y = y + (row_height - box_size) / 2
                         pdf.rect(box_x, box_y, box_size, box_size)
                         if val:
-                            pdf.set_xy(x + 2 + box_size + 1, y)
-                            pdf.cell(w - (box_size + 3), 6, val, border=0, fill=False)
+                            pdf.set_xy(box_x + box_size + 1.5, y)
+                            # Align to left within remaining space
+                            pdf.cell(w - box_size - 3, row_height, val, border=0, align="L", fill=False)
                     else:
                         # Center the box for Ticket Closed, Alarms Clear, Complete
                         box_x = x + (w - box_size) / 2
-                        box_y = y + (6 - box_size) / 2
+                        box_y = y + (row_height - box_size) / 2
                         pdf.rect(box_x, box_y, box_size, box_size)
                         # Check it if there's a value
                         if val:
@@ -862,8 +863,8 @@ def api_export_pdf():
                     
                     pdf.set_xy(x + w, y)
                 else:
-                    pdf.cell(w, 6, val, border=1, fill=True)
-            pdf.ln()
+                    pdf.cell(w, row_height, val, border=1, align="C" if j in [4,7] else "L", fill=True)
+            pdf.ln(row_height)
 
         # Add empty rows to match Excel look if there are few visitors
         empty_rows_to_add = max(0, 15 - len(day_rows))
@@ -877,18 +878,18 @@ def api_export_pdf():
                 if j in [6, 8, 9, 10, 13]:
                     x = pdf.get_x()
                     y = pdf.get_y()
-                    pdf.cell(w, 6, "", border=1, fill=True)
+                    pdf.cell(w, row_height, "", border=1, fill=True)
                     box_size = 3
                     if j in [6, 8]:
-                        box_x = x + 2
+                        box_x = x + 1.5
                     else:
                         box_x = x + (w - box_size) / 2
-                    box_y = y + (6 - box_size) / 2
+                    box_y = y + (row_height - box_size) / 2
                     pdf.rect(box_x, box_y, box_size, box_size)
                     pdf.set_xy(x + w, y)
                 else:
-                    pdf.cell(w, 6, "", border=1, fill=True)
-            pdf.ln()
+                    pdf.cell(w, row_height, "", border=1, fill=True)
+            pdf.ln(row_height)
 
         pdf.ln(4)
         pdf.set_font("Helvetica", "I", 8)
