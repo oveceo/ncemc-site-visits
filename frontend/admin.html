@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NCEMC Admin</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="dashboard-body">
+    <header class="dash-header">
+        <div class="dash-header-left"><h1>Admin Panel</h1></div>
+        <div class="dash-header-right">
+            <a href="/dashboard.html" class="btn btn-sm">Dashboard</a>
+            <button class="btn btn-sm btn-outline" id="btn-logout">Logout</button>
+        </div>
+    </header>
+
+    <div class="admin-tabs">
+        <button class="tab active" data-tab="visitors">Visitors</button>
+        <button class="tab" data-tab="companies">Companies</button>
+        <button class="tab" data-tab="history">History</button>
+        <button class="tab" data-tab="audit">Audit Log</button>
+        <button class="tab" data-tab="settings">Settings</button>
+    </div>
+
+    <div class="admin-container">
+        <div class="tab-panel active" id="panel-visitors">
+            <section class="admin-section">
+                <h2>Add New Visitor</h2>
+                <form id="add-form" class="admin-form">
+                    <input type="text" id="add-name" placeholder="Full Name" required>
+                    <input type="text" id="add-company" placeholder="Company" required>
+                    <input type="text" id="add-phone" placeholder="Phone Number">
+                    <button type="submit" class="btn btn-primary">Add</button>
+                </form>
+                <div id="add-msg" class="form-msg"></div>
+            </section>
+            <section class="admin-section">
+                <h2>Visitor Directory (<span id="visitor-count">0</span>)</h2>
+                <div class="filter-row">
+                    <input type="text" id="admin-search" placeholder="Search visitors...">
+                    <select id="filter-status"><option value="all">All</option><option value="approved">Approved</option><option value="pending">Pending (Walk-ins)</option></select>
+                </div>
+                <div class="admin-table-wrap">
+                    <table class="admin-table">
+                        <thead><tr><th>Status</th><th>Name</th><th>Company</th><th>Phone</th><th>Added</th><th></th></tr></thead>
+                        <tbody id="visitor-tbody"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <div class="tab-panel" id="panel-companies">
+            <section class="admin-section">
+                <h2>Add New Company</h2>
+                <form id="add-company-form" class="admin-form" style="grid-template-columns: 1fr auto;">
+                    <input type="text" id="new-co-name" placeholder="Company Name" required>
+                    <button type="submit" class="btn btn-primary">Add</button>
+                </form>
+                <div id="co-msg" class="form-msg"></div>
+            </section>
+            <section class="admin-section">
+                <h2>Company Directory</h2>
+                <div class="admin-table-wrap">
+                    <table class="admin-table">
+                        <thead><tr><th>Company</th><th>Visitors</th><th>Sites</th><th></th></tr></thead>
+                        <tbody id="company-tbody"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <div class="tab-panel" id="panel-history">
+            <section class="admin-section">
+                <h2>Check-In History</h2>
+                <input type="date" id="history-date" class="admin-date">
+                <div class="admin-table-wrap">
+                    <table class="admin-table">
+                        <thead><tr><th>Type</th><th>Name</th><th>Company</th><th>Site</th><th>In</th><th>Out</th><th>Reason</th><th>UAR#</th></tr></thead>
+                        <tbody id="history-tbody"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <div class="tab-panel" id="panel-audit">
+            <section class="admin-section">
+                <h2>Audit Log</h2>
+                <p class="step-desc">All system actions are logged here for accountability.</p>
+                <div class="admin-table-wrap">
+                    <table class="admin-table">
+                        <thead><tr><th>Timestamp</th><th>Action</th><th>Detail</th><th>Actor</th></tr></thead>
+                        <tbody id="audit-tbody"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <div class="tab-panel" id="panel-settings">
+            <section class="admin-section">
+                <h2>Change Staff Password</h2>
+                <p class="step-desc">This password is used for Dashboard and Admin access.</p>
+                <form id="pw-form" style="max-width:400px;">
+                    <div class="form-group"><label for="new-pw">New Password</label><input type="password" id="new-pw" placeholder="Enter new password" minlength="4"></div>
+                    <div class="form-group"><label for="confirm-pw">Confirm Password</label><input type="password" id="confirm-pw" placeholder="Confirm new password"></div>
+                    <button type="submit" class="btn btn-primary">Update Password</button>
+                    <div id="pw-msg" class="form-msg"></div>
+                </form>
+            </section>
+            <section class="admin-section">
+                <h2>Data Management</h2>
+                <p class="step-desc">Re-import all visitor data from the Excel workbook. Check-in history is preserved.</p>
+                <button class="btn btn-danger" id="btn-reimport">Re-Import from Excel</button>
+                <div id="reimport-msg" class="form-msg"></div>
+            </section>
+        </div>
+    </div>
+
+    <script src="/js/config.js"></script>
+    <script src="/js/api.js"></script>
+    <script>
+    (function() {
+        if (!api.requireAuth()) return;
+
+        document.getElementById('btn-logout').addEventListener('click', () => api.logout());
+
+        let allVisitors = [];
+
+        document.querySelectorAll('.admin-tabs .tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+                this.classList.add('active');
+                document.getElementById('panel-' + this.dataset.tab).classList.add('active');
+                if (this.dataset.tab === 'companies') loadCompanies();
+                if (this.dataset.tab === 'audit') loadAudit();
+                if (this.dataset.tab === 'history') loadHistory();
+            });
+        });
+
+        function loadVisitors() {
+            api.fetchJSON('/api/admin/visitors').then(data => {
+                allVisitors = data;
+                document.getElementById('visitor-count').textContent = data.length;
+                filterAndRender();
+            });
+        }
+
+        function filterAndRender() {
+            const q = (document.getElementById('admin-search').value || '').toLowerCase();
+            const status = document.getElementById('filter-status').value;
+            let list = allVisitors;
+            if (q) list = list.filter(v => v.name.toLowerCase().includes(q) || (v.company||'').toLowerCase().includes(q) || (v.phone||'').includes(q));
+            if (status === 'approved') list = list.filter(v => v.approved);
+            if (status === 'pending') list = list.filter(v => !v.approved);
+
+            document.getElementById('visitor-tbody').innerHTML = list.map(v =>
+                '<tr class="' + (v.approved ? '' : 'row-pending') + '">' +
+                '<td><span class="status-pill ' + (v.approved ? 'pill-ok' : 'pill-pending') + '">' + (v.approved ? 'Approved' : 'Pending') + '</span></td>' +
+                '<td>' + esc(v.name) + '</td><td>' + esc(v.company) + '</td><td>' + esc(v.phone) + '</td>' +
+                '<td style="font-size:0.8rem;color:var(--text-dim)">' + (v.added_at || '') + '</td>' +
+                '<td class="action-cell">' +
+                    (!v.approved ? '<button class="btn btn-sm btn-approve" onclick="approveV(' + v.id + ')">Approve</button>' : '') +
+                    '<button class="btn btn-sm btn-danger" onclick="deleteV(' + v.id + ',\'' + esc(v.name) + '\')">Remove</button>' +
+                '</td></tr>'
+            ).join('') || '<tr><td colspan="6" style="text-align:center;padding:20px">No visitors match</td></tr>';
+        }
+
+        document.getElementById('admin-search').addEventListener('input', filterAndRender);
+        document.getElementById('filter-status').addEventListener('change', filterAndRender);
+
+        document.getElementById('add-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const msg = document.getElementById('add-msg');
+            api.postJSON('/api/admin/visitors', {
+                name: document.getElementById('add-name').value.trim(),
+                company: document.getElementById('add-company').value.trim(),
+                phone: document.getElementById('add-phone').value.trim(),
+            }).then(data => {
+                if (data.success) { msg.textContent = 'Visitor added!'; msg.className = 'form-msg success'; this.reset(); loadVisitors(); }
+                else { msg.textContent = data.error; msg.className = 'form-msg error'; }
+                setTimeout(() => msg.textContent = '', 3000);
+            });
+        });
+
+        window.deleteV = function(id, name) {
+            if (!confirm('Remove ' + name + '?')) return;
+            api.fetch('/api/admin/visitors/' + id, { method: 'DELETE' }).then(() => loadVisitors());
+        };
+        window.approveV = function(id) {
+            api.fetch('/api/dashboard/approve/' + id, { method: 'POST' }).then(() => loadVisitors());
+        };
+
+        function loadCompanies() {
+            api.fetchJSON('/api/admin/companies').then(data => {
+                document.getElementById('company-tbody').innerHTML = data.map(c =>
+                    '<tr><td><strong>' + esc(c.name) + '</strong></td><td>' + c.visitor_count + '</td><td>' + c.site_count + '</td>' +
+                    '<td><button class="btn btn-sm btn-danger" onclick="deleteCo(\'' + esc(c.name) + '\')">Remove</button></td></tr>'
+                ).join('');
+            });
+        }
+
+        document.getElementById('add-company-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const msg = document.getElementById('co-msg');
+            api.postJSON('/api/admin/companies', { name: document.getElementById('new-co-name').value.trim() }).then(data => {
+                msg.textContent = data.success ? 'Company added!' : data.error;
+                msg.className = 'form-msg ' + (data.success ? 'success' : 'error');
+                if (data.success) { this.reset(); loadCompanies(); }
+                setTimeout(() => msg.textContent = '', 3000);
+            });
+        });
+
+        window.deleteCo = function(name) {
+            if (!confirm('Remove company: ' + name + '?')) return;
+            api.fetch('/api/admin/companies/' + encodeURIComponent(name), { method: 'DELETE' }).then(() => loadCompanies());
+        };
+
+        const historyDate = document.getElementById('history-date');
+        historyDate.value = new Date().toISOString().split('T')[0];
+        historyDate.addEventListener('change', loadHistory);
+
+        function loadHistory() {
+            api.fetchJSON('/api/admin/history?date=' + historyDate.value).then(data => {
+                document.getElementById('history-tbody').innerHTML = data.map(c =>
+                    '<tr><td>' + (c.is_walkin ? '<span class="status-pill pill-pending">Walk-In</span>' : '<span class="status-pill pill-ok">Reg</span>') + '</td>' +
+                    '<td>' + esc(c.visitor_name) + '</td><td>' + esc(c.company) + '</td><td>' + esc(c.site) + '</td>' +
+                    '<td>' + esc(c.time_in) + '</td><td>' + esc(c.time_out || '-') + '</td>' +
+                    '<td>' + esc(c.reason) + '</td><td>' + esc(c.uar_number || '-') + '</td></tr>'
+                ).join('') || '<tr><td colspan="8" style="text-align:center;padding:20px">No check-ins</td></tr>';
+            });
+        }
+
+        function loadAudit() {
+            api.fetchJSON('/api/admin/audit').then(data => {
+                document.getElementById('audit-tbody').innerHTML = data.map(a =>
+                    '<tr><td style="white-space:nowrap;font-size:0.85rem">' + esc(a.timestamp) + '</td>' +
+                    '<td><span class="audit-action">' + esc(a.action) + '</span></td>' +
+                    '<td style="font-size:0.9rem">' + esc(a.detail) + '</td><td>' + esc(a.actor) + '</td></tr>'
+                ).join('');
+            });
+        }
+
+        document.getElementById('pw-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const msg = document.getElementById('pw-msg');
+            const pw = document.getElementById('new-pw').value;
+            const cfm = document.getElementById('confirm-pw').value;
+            if (pw !== cfm) { msg.textContent = 'Passwords do not match'; msg.className = 'form-msg error'; return; }
+            api.postJSON('/api/admin/change-password', { password: pw }).then(data => {
+                msg.textContent = data.message || data.error;
+                msg.className = 'form-msg ' + (data.success ? 'success' : 'error');
+                if (data.success) this.reset();
+            });
+        });
+
+        document.getElementById('btn-reimport').addEventListener('click', function() {
+            if (!confirm('This will replace ALL visitor/company data from Excel. Check-in history is preserved. Continue?')) return;
+            const msg = document.getElementById('reimport-msg');
+            msg.textContent = 'Importing...'; msg.className = 'form-msg';
+            api.fetch('/api/admin/reimport', { method: 'POST' }).then(r => r.json()).then(data => {
+                msg.textContent = data.message || 'Done!'; msg.className = 'form-msg success'; loadVisitors();
+            });
+        });
+
+        function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+        loadVisitors();
+        loadHistory();
+    })();
+    </script>
+</body>
+</html>

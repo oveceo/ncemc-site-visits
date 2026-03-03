@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: ncemc-checkin-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: FRONTEND_URL
+        sync: false
+      - key: DB_PATH
+        value: /data/visitors.db
+      - key: EXCEL_PATH
+        value: /opt/render/project/src/Information Note Master.xlsm
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 1

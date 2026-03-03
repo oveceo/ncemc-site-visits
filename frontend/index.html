@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>NCEMC Site Check-In</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="checkin-body">
+
+    <!-- ===== STEP 1: Select Company ===== -->
+    <div id="step-company" class="step active">
+        <div class="card">
+            <div class="logo-header">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                    </svg>
+                </div>
+                <h1>NCEMC Site Visit</h1>
+                <p class="subtitle">Self-Service Check-In</p>
+            </div>
+
+            <div class="step-indicator">Step 1 of 3</div>
+
+            <div class="form-group">
+                <label for="company-search">Your Company</label>
+                <div class="search-input-wrap">
+                    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+                        <polyline points="9 22 9 12 15 12 15 22"/>
+                    </svg>
+                    <input type="text" id="company-search" placeholder="Start typing your company name..."
+                           autocomplete="off" autocapitalize="words" spellcheck="false">
+                    <button id="clear-company" class="clear-btn" style="display:none" aria-label="Clear">&times;</button>
+                </div>
+                <div id="company-results" class="search-results"></div>
+            </div>
+
+            <div class="divider"><span>or</span></div>
+
+            <button id="btn-new-company" class="btn btn-outline full-width">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                    <circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/>
+                </svg>
+                My company isn't listed
+            </button>
+        </div>
+    </div>
+
+    <!-- ===== STEP 1b: New Company Entry ===== -->
+    <div id="step-new-company" class="step">
+        <div class="card">
+            <button class="back-arrow" id="back-to-companies">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+            </button>
+            <h2>New Company</h2>
+            <p class="step-desc">Enter your company name. Our team will be notified.</p>
+            <div class="form-group">
+                <label for="new-company-name">Company Name</label>
+                <input type="text" id="new-company-name" placeholder="Enter your company name" autocapitalize="words">
+            </div>
+            <button id="btn-use-new-company" class="btn btn-primary full-width" disabled>Continue</button>
+        </div>
+    </div>
+
+    <!-- ===== STEP 2: Find Your Name ===== -->
+    <div id="step-name" class="step">
+        <div class="card">
+            <button class="back-arrow" id="back-to-company-select">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+            </button>
+            <div class="company-badge" id="selected-company-badge">
+                <span class="badge-label">Company</span>
+                <span class="badge-value" id="badge-company-name"></span>
+            </div>
+
+            <div class="step-indicator">Step 2 of 3</div>
+
+            <div class="form-group">
+                <label for="name-search">Find Your Name</label>
+                <div class="search-input-wrap">
+                    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                    </svg>
+                    <input type="text" id="name-search" placeholder="Start typing your name..."
+                           autocomplete="off" autocapitalize="words" spellcheck="false">
+                    <button id="clear-name" class="clear-btn" style="display:none" aria-label="Clear">&times;</button>
+                </div>
+                <div id="name-results" class="search-results"></div>
+            </div>
+
+            <div class="divider"><span>or</span></div>
+
+            <button id="btn-not-listed" class="btn btn-outline full-width">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                    <circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/>
+                </svg>
+                I'm not on the list
+            </button>
+        </div>
+    </div>
+
+    <!-- ===== STEP 2b: New Visitor Registration ===== -->
+    <div id="step-new-visitor" class="step">
+        <div class="card">
+            <button class="back-arrow" id="back-to-name-search">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+            </button>
+            <h2>New Visitor</h2>
+            <div class="company-badge">
+                <span class="badge-label">Company</span>
+                <span class="badge-value" id="new-visitor-company"></span>
+            </div>
+            <p class="step-desc">Please provide your information. Our team will be notified of your visit.</p>
+
+            <div class="form-group">
+                <label for="walkin-name">Full Name</label>
+                <input type="text" id="walkin-name" placeholder="Your full name" autocapitalize="words">
+            </div>
+            <div class="form-group">
+                <label for="walkin-phone">Phone Number</label>
+                <input type="tel" id="walkin-phone" placeholder="Your phone number">
+            </div>
+            <button id="btn-continue-walkin" class="btn btn-primary full-width" disabled>Continue to Visit Details</button>
+        </div>
+    </div>
+
+    <!-- ===== STEP 3: Visit Details ===== -->
+    <div id="step-details" class="step">
+        <div class="card">
+            <button class="back-arrow" id="back-to-name">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+            </button>
+
+            <div class="step-indicator">Step 3 of 3</div>
+
+            <div id="visitor-summary" class="visitor-badge-card">
+                <div class="visitor-avatar" id="vis-avatar"></div>
+                <div class="visitor-info">
+                    <span class="visitor-name" id="vis-name"></span>
+                    <span class="visitor-company" id="vis-company"></span>
+                    <span class="visitor-phone" id="vis-phone"></span>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="site-select">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="field-icon">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
+                        <circle cx="12" cy="10" r="3"/>
+                    </svg>
+                    Site
+                </label>
+                <select id="site-select"><option value="">Select a site...</option></select>
+            </div>
+
+            <div class="form-group">
+                <label for="time-select">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="field-icon">
+                        <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+                    </svg>
+                    Estimated Time on Site
+                </label>
+                <select id="time-select">
+                    <option value="">Select time...</option>
+                    <option>1 hr</option><option>2 hrs</option><option>3 hrs</option>
+                    <option>4 hrs</option><option>5 hrs</option><option>6 hrs</option>
+                    <option>7 hrs</option><option>8 hrs</option><option>9 hrs</option>
+                    <option>10 hrs</option><option>11 hrs</option><option>12 hrs</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="reason-select">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="field-icon">
+                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                        <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>
+                    </svg>
+                    Reason for Visit
+                </label>
+                <select id="reason-select"><option value="">Select reason...</option></select>
+            </div>
+
+            <div class="form-group" id="other-reason-group" style="display:none">
+                <label for="other-reason-input">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="field-icon">
+                        <circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>
+                    </svg>
+                    Please Specify <span class="required-star">*</span>
+                </label>
+                <input type="text" id="other-reason-input" placeholder="Describe the reason for your visit...">
+            </div>
+
+            <div class="form-group">
+                <label for="notes-input">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="field-icon">
+                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                    Notes <span class="opt-label">(optional)</span>
+                </label>
+                <input type="text" id="notes-input" placeholder="Any additional info...">
+            </div>
+
+            <button id="btn-checkin" class="btn btn-primary btn-big full-width" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22">
+                    <path d="M5 13l4 4L19 7"/>
+                </svg>
+                CHECK IN
+            </button>
+        </div>
+    </div>
+
+    <!-- ===== STEP 4: Confirmation ===== -->
+    <div id="step-confirm" class="step">
+        <div class="card confirm-card">
+            <div class="confirm-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                    <path d="M20 6L9 17l-5-5"/>
+                </svg>
+            </div>
+            <h2>You're Checked In!</h2>
+            <div class="confirm-details">
+                <div class="confirm-row"><span class="confirm-label">Time In</span><span class="confirm-value" id="confirm-time"></span></div>
+                <div class="confirm-row"><span class="confirm-label">Site</span><span class="confirm-value" id="confirm-site"></span></div>
+                <div class="confirm-row"><span class="confirm-label">Estimated Time</span><span class="confirm-value" id="confirm-est"></span></div>
+            </div>
+            <p class="confirm-note">The control room has been notified.<br>Have a safe visit!</p>
+            <button id="btn-checkout" class="btn btn-outline full-width">CHECK OUT WHEN DONE</button>
+            <button id="btn-new" class="btn btn-link full-width">New Check-In</button>
+        </div>
+    </div>
+
+    <!-- ===== Already Checked In ===== -->
+    <div id="step-already" class="step">
+        <div class="card confirm-card">
+            <div class="confirm-icon already-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>
+                </svg>
+            </div>
+            <h2>Already Checked In</h2>
+            <p>You checked in at <strong id="already-time"></strong> at <strong id="already-site"></strong>.</p>
+            <button id="btn-already-checkout" class="btn btn-primary full-width">CHECK OUT NOW</button>
+            <button id="btn-already-cancel" class="btn btn-link full-width">Go Back</button>
+        </div>
+    </div>
+
+    <script src="/js/config.js"></script>
+    <script src="/js/api.js"></script>
+    <script>
+    (function() {
+        let selectedCompany = '';
+        let selectedVisitor = null;
+        let isWalkin = false;
+        let isNewCompany = false;
+        let allCompanies = [];
+        let debounce = null;
+
+        const $ = id => document.getElementById(id);
+        const steps = {
+            company:    $('step-company'),
+            newCompany: $('step-new-company'),
+            name:       $('step-name'),
+            newVisitor: $('step-new-visitor'),
+            details:    $('step-details'),
+            confirm:    $('step-confirm'),
+            already:    $('step-already'),
+        };
+
+        const companyInput = $('company-search');
+        const companyResults = $('company-results');
+        const clearCompanyBtn = $('clear-company');
+
+        fetch(window.API_URL + '/api/companies').then(r => r.json()).then(c => { allCompanies = c; });
+
+        companyInput.addEventListener('input', function() {
+            const q = this.value.trim().toLowerCase();
+            clearCompanyBtn.style.display = q ? 'block' : 'none';
+            if (q.length < 1) { companyResults.innerHTML = ''; companyResults.classList.remove('visible'); return; }
+            const matches = allCompanies.filter(c => c.toLowerCase().includes(q));
+            matches.sort((a, b) => {
+                const aStarts = a.toLowerCase().startsWith(q) ? 0 : 1;
+                const bStarts = b.toLowerCase().startsWith(q) ? 0 : 1;
+                return aStarts - bStarts || a.localeCompare(b);
+            });
+            if (matches.length === 0) {
+                companyResults.innerHTML = '<div class="no-results">No matching companies</div>';
+            } else {
+                companyResults.innerHTML = matches.slice(0, 15).map(c => `
+                    <button class="result-item company-result" data-company="${esc(c)}">
+                        <span class="result-avatar co-avatar">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                                <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+                                <polyline points="9 22 9 12 15 12 15 22"/>
+                            </svg>
+                        </span>
+                        <span class="result-name">${highlight(c, q)}</span>
+                    </button>
+                `).join('');
+            }
+            companyResults.classList.add('visible');
+        });
+
+        clearCompanyBtn.addEventListener('click', () => { companyInput.value = ''; clearCompanyBtn.style.display = 'none'; companyResults.innerHTML = ''; companyResults.classList.remove('visible'); companyInput.focus(); });
+        companyResults.addEventListener('click', e => { const item = e.target.closest('.company-result'); if (!item) return; selectCompany(item.dataset.company, false); });
+        $('btn-new-company').addEventListener('click', () => showStep(steps.newCompany));
+        $('back-to-companies').addEventListener('click', () => showStep(steps.company));
+
+        const newCompanyInput = $('new-company-name');
+        const btnUseNew = $('btn-use-new-company');
+        newCompanyInput.addEventListener('input', () => { btnUseNew.disabled = !newCompanyInput.value.trim(); });
+        btnUseNew.addEventListener('click', () => { selectCompany(newCompanyInput.value.trim(), true); });
+
+        function selectCompany(company, isNew) {
+            selectedCompany = company; isNewCompany = isNew;
+            $('badge-company-name').textContent = company;
+            $('new-visitor-company').textContent = company;
+            $('name-search').value = ''; $('name-results').innerHTML = ''; $('name-results').classList.remove('visible');
+            if (isNew) { showStep(steps.newVisitor); } else { showStep(steps.name); $('name-search').focus(); }
+        }
+
+        const nameInput = $('name-search');
+        const nameResults = $('name-results');
+        const clearNameBtn = $('clear-name');
+
+        nameInput.addEventListener('input', function() {
+            const q = this.value.trim();
+            clearNameBtn.style.display = q ? 'block' : 'none';
+            clearTimeout(debounce);
+            if (q.length < 1) { debounce = setTimeout(() => { fetchNameResults(''); }, 100); return; }
+            debounce = setTimeout(() => fetchNameResults(q), 200);
+        });
+        nameInput.addEventListener('focus', function() { if (!this.value.trim()) fetchNameResults(''); });
+
+        function fetchNameResults(q) {
+            const url = window.API_URL + '/api/visitors-by-company?company=' + encodeURIComponent(selectedCompany) + '&q=' + encodeURIComponent(q);
+            fetch(url).then(r => r.json()).then(visitors => {
+                if (visitors.length === 0 && q.length > 0) {
+                    nameResults.innerHTML = '<div class="no-results">No one with that name found at ' + esc(selectedCompany) + '</div>';
+                } else if (visitors.length === 0) {
+                    nameResults.innerHTML = '<div class="no-results">No registered visitors for this company</div>';
+                } else {
+                    nameResults.innerHTML = visitors.map(v => `
+                        <button class="result-item" data-id="${v.id}" data-name="${esc(v.name)}" data-company="${esc(v.company)}" data-phone="${esc(v.phone)}">
+                            <span class="result-avatar">${initials(v.name)}</span>
+                            <span class="result-info">
+                                <span class="result-name">${q ? highlight(v.name, q) : esc(v.name)}</span>
+                                <span class="result-company">${esc(v.phone)}</span>
+                            </span>
+                        </button>
+                    `).join('');
+                }
+                nameResults.classList.add('visible');
+            });
+        }
+
+        clearNameBtn.addEventListener('click', () => { nameInput.value = ''; clearNameBtn.style.display = 'none'; nameResults.innerHTML = ''; nameResults.classList.remove('visible'); nameInput.focus(); });
+
+        nameResults.addEventListener('click', e => {
+            const item = e.target.closest('.result-item');
+            if (!item) return;
+            selectedVisitor = { id: parseInt(item.dataset.id), name: item.dataset.name, company: item.dataset.company, phone: item.dataset.phone };
+            isWalkin = false;
+            fetch(window.API_URL + '/api/check-status/' + selectedVisitor.id)
+                .then(r => r.json())
+                .then(status => {
+                    if (status.checked_in) { $('already-time').textContent = status.time_in; $('already-site').textContent = status.site; showStep(steps.already); }
+                    else { showVisitDetails(); }
+                });
+        });
+
+        $('back-to-company-select').addEventListener('click', () => { selectedCompany = ''; showStep(steps.company); });
+        $('btn-not-listed').addEventListener('click', () => showStep(steps.newVisitor));
+
+        const walkinName = $('walkin-name');
+        const walkinPhone = $('walkin-phone');
+        const btnContinueWalkin = $('btn-continue-walkin');
+        function validateWalkin() { btnContinueWalkin.disabled = !(walkinName.value.trim() && walkinPhone.value.trim()); }
+        walkinName.addEventListener('input', validateWalkin);
+        walkinPhone.addEventListener('input', validateWalkin);
+        $('back-to-name-search').addEventListener('click', () => { if (isNewCompany) showStep(steps.newCompany); else showStep(steps.name); });
+        btnContinueWalkin.addEventListener('click', () => { selectedVisitor = null; isWalkin = true; showVisitDetails(); });
+
+        const siteSelect = $('site-select');
+        const timeSelect = $('time-select');
+        const reasonSelect = $('reason-select');
+        const notesInput = $('notes-input');
+        const btnCheckin = $('btn-checkin');
+
+        function showVisitDetails() {
+            const name = isWalkin ? walkinName.value.trim() : selectedVisitor.name;
+            const company = selectedCompany;
+            const phone = isWalkin ? walkinPhone.value.trim() : selectedVisitor.phone;
+            $('vis-avatar').textContent = initials(name); $('vis-name').textContent = name;
+            $('vis-company').textContent = company; $('vis-phone').textContent = phone;
+
+            fetch(window.API_URL + '/api/sites/' + encodeURIComponent(company)).then(r => r.json()).then(sites => {
+                siteSelect.innerHTML = '<option value="">Select a site...</option>';
+                sites.forEach(s => { const opt = document.createElement('option'); opt.value = s; opt.textContent = s; siteSelect.appendChild(opt); });
+            });
+            fetch(window.API_URL + '/api/reasons').then(r => r.json()).then(reasons => {
+                reasonSelect.innerHTML = '<option value="">Select reason...</option>';
+                reasons.forEach(r => { const opt = document.createElement('option'); opt.value = r; opt.textContent = r; reasonSelect.appendChild(opt); });
+            });
+            btnCheckin.disabled = true; notesInput.value = '';
+            $('other-reason-input').value = ''; $('other-reason-group').style.display = 'none';
+            showStep(steps.details);
+        }
+
+        $('back-to-name').addEventListener('click', () => { if (isWalkin) showStep(steps.newVisitor); else showStep(steps.name); });
+
+        const otherReasonGroup = $('other-reason-group');
+        const otherReasonInput = $('other-reason-input');
+        function isOtherReason(val) { return val === 'Other' || val === 'Miscellaneous'; }
+        function validateDetails() {
+            const reasonOk = reasonSelect.value && (!isOtherReason(reasonSelect.value) || otherReasonInput.value.trim());
+            btnCheckin.disabled = !(siteSelect.value && timeSelect.value && reasonOk);
+        }
+        siteSelect.addEventListener('change', validateDetails);
+        timeSelect.addEventListener('change', validateDetails);
+        reasonSelect.addEventListener('change', () => {
+            otherReasonGroup.style.display = isOtherReason(reasonSelect.value) ? 'block' : 'none';
+            if (!isOtherReason(reasonSelect.value)) otherReasonInput.value = '';
+            validateDetails();
+        });
+        otherReasonInput.addEventListener('input', validateDetails);
+
+        btnCheckin.addEventListener('click', function() {
+            if (this.disabled) return;
+            this.disabled = true; this.innerHTML = '<span class="spinner"></span> Checking in...';
+            let finalReason = reasonSelect.value;
+            if (isOtherReason(finalReason) && otherReasonInput.value.trim()) finalReason = 'Other: ' + otherReasonInput.value.trim();
+            const payload = { site: siteSelect.value, estimated_time: timeSelect.value, reason: finalReason, notes: notesInput.value.trim() };
+            if (isWalkin) { payload.walkin_name = walkinName.value.trim(); payload.walkin_company = selectedCompany; payload.walkin_phone = walkinPhone.value.trim(); }
+            else { payload.visitor_id = selectedVisitor.id; }
+            fetch(window.API_URL + '/api/checkin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+            .then(r => r.json()).then(data => {
+                if (data.success) {
+                    $('confirm-time').textContent = data.time_in; $('confirm-site').textContent = siteSelect.value; $('confirm-est').textContent = timeSelect.value;
+                    if (data.visitor_id) { if (!selectedVisitor) selectedVisitor = {}; selectedVisitor.id = data.visitor_id; }
+                    showStep(steps.confirm);
+                } else { alert(data.error || 'Check-in failed.'); resetCheckinBtn(); }
+            }).catch(() => { alert('Connection error. Please try again.'); resetCheckinBtn(); });
+        });
+
+        function resetCheckinBtn() {
+            btnCheckin.disabled = false;
+            btnCheckin.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22"><path d="M5 13l4 4L19 7"/></svg> CHECK IN';
+        }
+
+        $('btn-checkout').addEventListener('click', doCheckout);
+        $('btn-already-checkout').addEventListener('click', doCheckout);
+        function doCheckout() {
+            if (!selectedVisitor || !selectedVisitor.id) { alert('Unable to check out. Please contact the control room.'); return; }
+            fetch(window.API_URL + '/api/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ visitor_id: selectedVisitor.id }) })
+            .then(r => r.json()).then(data => {
+                if (data.success) { alert('Checked out at ' + data.time_out + '. Have a great day!'); resetAll(); }
+                else { alert(data.error || 'Checkout failed.'); }
+            });
+        }
+
+        $('btn-already-cancel').addEventListener('click', () => showStep(steps.name));
+        $('btn-new').addEventListener('click', resetAll);
+
+        function showStep(step) { Object.values(steps).forEach(s => s.classList.remove('active')); step.classList.add('active'); window.scrollTo(0, 0); }
+        function resetAll() {
+            selectedCompany = ''; selectedVisitor = null; isWalkin = false; isNewCompany = false;
+            companyInput.value = ''; nameInput.value = ''; walkinName.value = ''; walkinPhone.value = '';
+            newCompanyInput.value = ''; notesInput.value = '';
+            siteSelect.innerHTML = '<option value="">Select a site...</option>';
+            reasonSelect.innerHTML = '<option value="">Select reason...</option>';
+            btnCheckin.disabled = true; resetCheckinBtn(); showStep(steps.company);
+        }
+        function initials(name) { return (name || '??').split(' ').map(w => w[0] || '').join('').toUpperCase().slice(0, 2); }
+        function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+        function highlight(text, query) {
+            const idx = text.toLowerCase().indexOf(query.toLowerCase());
+            if (idx === -1) return esc(text);
+            return esc(text.slice(0, idx)) + '<mark>' + esc(text.slice(idx, idx + query.length)) + '</mark>' + esc(text.slice(idx + query.length));
+        }
+    })();
+    </script>
+</body>
+</html>

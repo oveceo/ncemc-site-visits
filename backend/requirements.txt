@@ -1,0 +1,7 @@
+flask>=3.0
+flask-cors>=4.0
+openpyxl>=3.1
+qrcode[pil]>=7.4
+fpdf2>=2.8
+gunicorn>=21.2
+itsdangerous>=2.1

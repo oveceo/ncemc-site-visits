@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NCEMC Dashboard - Site Visits</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="dashboard-body">
+
+    <header class="dash-header">
+        <div class="dash-header-left">
+            <h1>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="header-icon">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                </svg>
+                NCEMC Site Visits
+            </h1>
+            <span class="dash-date" id="dash-date"></span>
+        </div>
+        <div class="dash-header-right">
+            <span class="connection-status" id="conn-status" title="Real-time connection">
+                <span class="status-dot"></span>
+                <span class="status-text">Connecting...</span>
+            </span>
+            <button class="btn btn-sm" id="btn-sound" title="Toggle sound alerts">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                    <path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/>
+                </svg>
+            </button>
+            <a href="/qr.html" class="btn btn-sm" title="QR code for visitors">QR Code</a>
+            <a href="/admin.html" class="btn btn-sm">Admin</a>
+            <button class="btn btn-sm btn-outline" id="btn-logout" title="Log out">Logout</button>
+        </div>
+    </header>
+
+    <div class="date-filter-bar">
+        <div class="date-quick-btns">
+            <button class="date-btn active" id="btn-today">Today</button>
+            <button class="date-btn" id="btn-yesterday">Yesterday</button>
+            <button class="date-btn" id="btn-week">This Week</button>
+            <button class="date-btn" id="btn-custom">Custom</button>
+        </div>
+        <div class="date-inputs" id="date-inputs" style="display:none">
+            <label>From <input type="date" id="date-from"></label>
+            <label>To <input type="date" id="date-to"></label>
+            <button class="btn btn-sm btn-primary" id="btn-apply-dates">Apply</button>
+        </div>
+        <div class="date-actions">
+            <span class="date-range-label" id="date-range-label"></span>
+            <button class="btn btn-sm btn-export" id="btn-export-pdf" title="Export to PDF">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                    <path d="M14 2v6h6M12 18v-6M9 15l3 3 3-3"/>
+                </svg>
+                Export PDF
+            </button>
+        </div>
+    </div>
+
+    <div class="stats-bar">
+        <div class="stat"><span class="stat-number" id="stat-active">0</span><span class="stat-label">On-Site Now</span></div>
+        <div class="stat stat-walkin"><span class="stat-number" id="stat-walkins">0</span><span class="stat-label">Walk-Ins</span></div>
+        <div class="stat"><span class="stat-number" id="stat-total">0</span><span class="stat-label">Total</span></div>
+        <div class="stat"><span class="stat-number" id="stat-completed">0</span><span class="stat-label">Completed</span></div>
+    </div>
+
+    <section class="dash-section" id="section-active">
+        <h2 class="section-title"><span class="pulse-dot"></span> Active Visitors</h2>
+        <div id="active-list" class="checkin-grid">
+            <div class="empty-state" id="empty-active">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48">
+                    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
+                </svg>
+                <p>No active visitors right now</p>
+                <p class="empty-sub">Check-ins will appear here in real time</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="dash-section">
+        <h2 class="section-title section-toggle" id="toggle-completed">
+            <span id="completed-title">Completed Today</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20" class="toggle-arrow">
+                <path d="M6 9l6 6 6-6"/>
+            </svg>
+        </h2>
+        <div id="completed-list" class="checkin-grid collapsed"></div>
+    </section>
+
+    <div id="edit-modal" class="modal" style="display:none">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">Edit Check-In</h3>
+                <button class="modal-close" id="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-row-2">
+                    <div class="form-group"><label for="edit-uar">UAR #</label><input type="text" id="edit-uar" placeholder="Enter UAR number"></div>
+                    <div class="form-group"><label for="edit-timeout">Time Out</label><input type="time" id="edit-timeout"></div>
+                </div>
+                <div class="form-row-2">
+                    <div class="form-group"><label for="edit-ticket">Ticket Closed</label><select id="edit-ticket"><option value="">--</option><option value="Yes">Yes</option><option value="No">No</option></select></div>
+                    <div class="form-group"><label for="edit-alarms">Alarms Clear</label><select id="edit-alarms"><option value="">--</option><option value="Yes">Yes</option><option value="No">No</option></select></div>
+                </div>
+                <div class="form-group" id="alarm-detail-group" style="display:none">
+                    <label for="edit-alarm-detail">Specify Alarm If Not Clear</label>
+                    <input type="text" id="edit-alarm-detail" placeholder="Describe the alarm condition...">
+                </div>
+                <div class="form-group"><label for="edit-notes">Notes</label><textarea id="edit-notes" rows="2" placeholder="Additional notes..."></textarea></div>
+                <div class="form-group"><label class="checkbox-label"><input type="checkbox" id="edit-complete"> Mark as Complete</label></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="modal-cancel">Cancel</button>
+                <button class="btn btn-primary" id="modal-save">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <script src="/js/config.js"></script>
+    <script src="/js/api.js"></script>
+    <script>
+    (function() {
+        if (!api.requireAuth()) return;
+
+        let checkins = [];
+        let soundEnabled = true;
+        let editingId = null;
+        let currentFrom = todayStr();
+        let currentTo = todayStr();
+        let isViewingToday = true;
+
+        const activeList = document.getElementById('active-list');
+        const completedList = document.getElementById('completed-list');
+        const emptyActiveHTML = document.getElementById('empty-active').outerHTML;
+        const sectionActive = document.getElementById('section-active');
+
+        document.getElementById('btn-logout').addEventListener('click', () => api.logout());
+
+        function todayStr() { return new Date().toISOString().split('T')[0]; }
+        function yesterdayStr() { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().split('T')[0]; }
+        function weekAgoStr() { const d = new Date(); d.setDate(d.getDate() - 6); return d.toISOString().split('T')[0]; }
+
+        document.getElementById('dash-date').textContent = new Date().toLocaleDateString('en-US', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        });
+
+        const dateFromInput = document.getElementById('date-from');
+        const dateToInput = document.getElementById('date-to');
+        const dateInputs = document.getElementById('date-inputs');
+        const dateLabel = document.getElementById('date-range-label');
+
+        function setDateRange(from, to, label) {
+            currentFrom = from; currentTo = to;
+            isViewingToday = (from === todayStr() && to === todayStr());
+            sectionActive.style.display = isViewingToday ? '' : 'none';
+            document.getElementById('completed-title').textContent = isViewingToday ? 'Completed Today' : 'All Visits';
+            completedList.classList.remove('collapsed');
+            document.querySelector('.toggle-arrow').classList.add('rotated');
+            dateLabel.textContent = label || formatDateRange(from, to);
+            loadCheckins();
+        }
+
+        function formatDateRange(from, to) {
+            const fmt = d => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            return from === to ? fmt(from) : fmt(from) + ' — ' + fmt(to);
+        }
+
+        document.querySelectorAll('.date-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.date-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                dateInputs.style.display = 'none';
+                if (this.id === 'btn-today') setDateRange(todayStr(), todayStr(), 'Today');
+                else if (this.id === 'btn-yesterday') setDateRange(yesterdayStr(), yesterdayStr(), 'Yesterday');
+                else if (this.id === 'btn-week') setDateRange(weekAgoStr(), todayStr(), 'This Week');
+                else if (this.id === 'btn-custom') { dateInputs.style.display = 'flex'; dateFromInput.value = currentFrom; dateToInput.value = currentTo; }
+            });
+        });
+
+        document.getElementById('btn-apply-dates').addEventListener('click', () => {
+            if (dateFromInput.value && dateToInput.value) setDateRange(dateFromInput.value, dateToInput.value);
+        });
+
+        document.getElementById('btn-export-pdf').addEventListener('click', () => {
+            window.open(window.API_URL + '/api/export/pdf?from=' + currentFrom + '&to=' + currentTo + '&token=' + api.getToken(), '_blank');
+        });
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playAlert(isWalkin) {
+            if (!soundEnabled) return;
+            if (isWalkin) {
+                [880, 1046.5, 880].forEach((freq, i) => {
+                    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+                    osc.type = 'triangle'; osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.35, audioCtx.currentTime + i * 0.12);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + i * 0.12 + 0.35);
+                    osc.connect(gain); gain.connect(audioCtx.destination);
+                    osc.start(audioCtx.currentTime + i * 0.12); osc.stop(audioCtx.currentTime + i * 0.12 + 0.35);
+                });
+            } else {
+                [523.25, 659.25].forEach((freq, i) => {
+                    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+                    osc.type = 'sine'; osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.3, audioCtx.currentTime + i * 0.15);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + i * 0.15 + 0.6);
+                    osc.connect(gain); gain.connect(audioCtx.destination);
+                    osc.start(audioCtx.currentTime + i * 0.15); osc.stop(audioCtx.currentTime + i * 0.15 + 0.6);
+                });
+            }
+        }
+
+        document.getElementById('btn-sound').addEventListener('click', function() {
+            soundEnabled = !soundEnabled; this.classList.toggle('muted', !soundEnabled);
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        });
+
+        if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+        function sendNotification(title, body) {
+            if ('Notification' in window && Notification.permission === 'granted') new Notification(title, { body });
+        }
+
+        function connectSSE() {
+            const status = document.getElementById('conn-status');
+            const es = new EventSource(api.sseUrl('/api/dashboard/stream'));
+
+            es.addEventListener('connected', () => { status.classList.add('connected'); status.querySelector('.status-text').textContent = 'Live'; });
+
+            es.addEventListener('new_checkin', e => {
+                const data = JSON.parse(e.data);
+                if (isViewingToday && !checkins.find(c => c.id === data.id)) {
+                    checkins.unshift(data); renderAll(); playAlert(data.is_walkin);
+                    const prefix = data.is_walkin ? '[WALK-IN] ' : '';
+                    showToast(prefix + data.visitor_name + ' checked in at ' + data.site, data.is_walkin ? 'walkin' : 'checkin');
+                    sendNotification(data.is_walkin ? 'WALK-IN Visitor' : 'New Site Visitor', data.visitor_name + ' (' + data.company + ') at ' + data.site);
+                }
+            });
+
+            es.addEventListener('checkout', e => {
+                const data = JSON.parse(e.data);
+                const ci = checkins.find(c => c.id === data.id);
+                if (ci) { ci.time_out = data.time_out; renderAll(); }
+                if (isViewingToday) showToast(data.visitor_name + ' checked out at ' + data.time_out, 'checkout');
+            });
+
+            es.addEventListener('update_checkin', e => {
+                const data = JSON.parse(e.data);
+                const idx = checkins.findIndex(c => c.id === data.id);
+                if (idx >= 0) checkins[idx] = data; else if (isViewingToday) checkins.unshift(data);
+                renderAll();
+            });
+
+            es.addEventListener('visitor_approved', e => {
+                const data = JSON.parse(e.data);
+                checkins.forEach(c => { if (c.visitor_id === data.visitor_id) { c.approved = 1; c.is_walkin = 0; } });
+                renderAll();
+                showToast(data.name + ' added to directory', 'checkout');
+            });
+
+            es.onerror = () => { status.classList.remove('connected'); status.querySelector('.status-text').textContent = 'Reconnecting...'; };
+        }
+
+        function loadCheckins() {
+            api.fetchJSON('/api/dashboard/checkins?from=' + currentFrom + '&to=' + currentTo)
+                .then(data => { checkins = data; renderAll(); });
+        }
+
+        function renderAll() {
+            const active = checkins.filter(c => !c.time_out && !c.complete);
+            const completed = checkins.filter(c => c.time_out || c.complete);
+            const display = isViewingToday ? completed : checkins;
+
+            document.getElementById('stat-active').textContent = active.length;
+            document.getElementById('stat-walkins').textContent = checkins.filter(c => c.is_walkin).length;
+            document.getElementById('stat-total').textContent = checkins.length;
+            document.getElementById('stat-completed').textContent = completed.length;
+
+            if (isViewingToday) activeList.innerHTML = active.length === 0 ? emptyActiveHTML : active.map(c => renderCard(c, false)).join('');
+            completedList.innerHTML = display.length === 0 ? '<div class="empty-state"><p>No visits for this period</p></div>'
+                : display.map(c => renderCard(c, isViewingToday ? true : (c.time_out || c.complete))).join('');
+        }
+
+        function renderCard(c, isDone) {
+            const ini = (c.visitor_name || '??').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+            const elapsed = getElapsed(c.time_in);
+            const walkinBadge = c.is_walkin && !c.approved ? '<span class="walkin-badge">WALK-IN</span>' : '';
+            const approveBtn = c.is_walkin && !c.approved ? '<button class="btn btn-sm btn-approve" onclick="approveVisitor(' + c.visitor_id + ',\'' + esc(c.visitor_name) + '\')">Add to Directory</button>' : '';
+            const dateTag = !isViewingToday && c.date_stamp ? '<span class="date-tag">' + c.date_stamp + '</span>' : '';
+
+            return '<div class="checkin-card ' + (isDone ? 'completed' : '') + ' ' + (c.is_walkin && !c.approved ? 'walkin-card' : '') + '" data-id="' + c.id + '">' +
+                '<div class="card-header">' +
+                    '<div class="card-avatar ' + (c.is_walkin && !c.approved ? 'walkin-avatar' : '') + '">' + ini + '</div>' +
+                    '<div class="card-identity"><span class="card-name">' + esc(c.visitor_name) + ' ' + walkinBadge + '</span>' +
+                        '<span class="card-company">' + esc(c.company) + ' ' + dateTag + '</span></div>' +
+                    '<div class="card-time-badge"><span class="time-in-badge">' + c.time_in + '</span>' +
+                        (c.time_out ? '<span class="time-out-badge">Out: ' + c.time_out + '</span>' : '<span class="elapsed">' + elapsed + '</span>') + '</div>' +
+                '</div>' +
+                '<div class="card-details">' +
+                    '<div class="detail-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg> ' + esc(c.site) + '</div>' +
+                    '<div class="detail-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> ' + esc(c.estimated_time) + '</div>' +
+                    '<div class="detail-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/></svg> ' + esc(c.reason) + '</div>' +
+                    (c.phone ? '<div class="detail-chip phone-chip"><a href="tel:' + esc(c.phone) + '">' + esc(c.phone) + '</a></div>' : '') +
+                '</div>' +
+                (c.uar_number ? '<div class="card-meta"><strong>UAR:</strong> ' + esc(c.uar_number) + '</div>' : '') +
+                (c.ticket_closed ? '<div class="card-meta"><strong>Ticket:</strong> ' + esc(c.ticket_closed) + ' | <strong>Alarms:</strong> ' + esc(c.alarms_clear) + (c.alarm_details ? ' — ' + esc(c.alarm_details) : '') + '</div>' : '') +
+                (c.notes ? '<div class="card-meta"><strong>Notes:</strong> ' + esc(c.notes) + '</div>' : '') +
+                '<div class="card-actions">' +
+                    (!c.time_out ? '<button class="btn btn-sm btn-action" onclick="quickCheckout(' + c.id + ')">Check Out</button>' : '') +
+                    '<button class="btn btn-sm btn-action" onclick="openEdit(' + c.id + ')">Edit</button>' +
+                    approveBtn +
+                '</div></div>';
+        }
+
+        function getElapsed(timeIn) {
+            const [h, m] = timeIn.split(':').map(Number);
+            const now = new Date(); const d = new Date(); d.setHours(h, m, 0);
+            const diff = Math.floor((now - d) / 60000);
+            if (diff < 1) return 'Just now'; if (diff < 60) return diff + ' min';
+            return Math.floor(diff / 60) + 'h ' + (diff % 60) + 'm';
+        }
+        function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+        window.quickCheckout = function(id) {
+            const now = new Date();
+            const t = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+            api.postJSON('/api/dashboard/update/' + id, { time_out: t }).then(data => {
+                if (data.success) { const ci = checkins.find(c => c.id === id); if (ci) ci.time_out = t; renderAll(); }
+            });
+        };
+
+        window.approveVisitor = function(visitorId, name) {
+            if (!confirm('Add ' + name + ' to the permanent visitor directory?')) return;
+            api.fetch('/api/dashboard/approve/' + visitorId, { method: 'POST' }).then(r => r.json()).then(data => {
+                if (data.success) {
+                    showToast(data.message, 'checkout');
+                    checkins.forEach(c => { if (c.visitor_id === visitorId) { c.approved = 1; c.is_walkin = 0; } });
+                    renderAll();
+                }
+            });
+        };
+
+        const modal = document.getElementById('edit-modal');
+        const alarmsSelect = document.getElementById('edit-alarms');
+        alarmsSelect.addEventListener('change', () => {
+            document.getElementById('alarm-detail-group').style.display = alarmsSelect.value === 'No' ? 'block' : 'none';
+        });
+
+        window.openEdit = function(id) {
+            editingId = id; const ci = checkins.find(c => c.id === id); if (!ci) return;
+            document.getElementById('modal-title').textContent = 'Edit: ' + ci.visitor_name;
+            document.getElementById('edit-uar').value = ci.uar_number || '';
+            document.getElementById('edit-timeout').value = ci.time_out || '';
+            document.getElementById('edit-ticket').value = ci.ticket_closed || '';
+            document.getElementById('edit-alarms').value = ci.alarms_clear || '';
+            document.getElementById('edit-alarm-detail').value = ci.alarm_details || '';
+            document.getElementById('edit-notes').value = ci.notes || '';
+            document.getElementById('edit-complete').checked = !!ci.complete;
+            document.getElementById('alarm-detail-group').style.display = ci.alarms_clear === 'No' ? 'block' : 'none';
+            modal.style.display = 'flex';
+        };
+
+        document.getElementById('modal-close').addEventListener('click', closeModal);
+        document.getElementById('modal-cancel').addEventListener('click', closeModal);
+        document.querySelector('.modal-backdrop').addEventListener('click', closeModal);
+        function closeModal() { modal.style.display = 'none'; editingId = null; }
+
+        document.getElementById('modal-save').addEventListener('click', () => {
+            if (!editingId) return;
+            const payload = {
+                uar_number: document.getElementById('edit-uar').value.trim(),
+                time_out: document.getElementById('edit-timeout').value || null,
+                ticket_closed: document.getElementById('edit-ticket').value,
+                alarms_clear: document.getElementById('edit-alarms').value,
+                alarm_details: document.getElementById('edit-alarm-detail').value.trim(),
+                notes: document.getElementById('edit-notes').value.trim(),
+                complete: document.getElementById('edit-complete').checked ? 1 : 0,
+            };
+            api.postJSON('/api/dashboard/update/' + editingId, payload).then(data => {
+                if (data.success) { const ci = checkins.find(c => c.id === editingId); if (ci) Object.assign(ci, payload); renderAll(); closeModal(); }
+            });
+        });
+
+        document.getElementById('toggle-completed').addEventListener('click', () => {
+            completedList.classList.toggle('collapsed');
+            document.querySelector('.toggle-arrow').classList.toggle('rotated');
+        });
+
+        function showToast(message, type) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast toast-' + type;
+            const icons = { checkin: '&#x2794;', checkout: '&#x2714;', walkin: '&#x26A0;' };
+            toast.innerHTML = '<span class="toast-icon">' + (icons[type] || '') + '</span><span class="toast-message">' + esc(message) + '</span>';
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.add('visible'), 10);
+            setTimeout(() => { toast.classList.remove('visible'); setTimeout(() => toast.remove(), 300); }, 6000);
+        }
+
+        setInterval(() => {
+            document.querySelectorAll('.elapsed').forEach(el => {
+                const card = el.closest('.checkin-card');
+                if (card) { const ci = checkins.find(c => c.id === parseInt(card.dataset.id)); if (ci && !ci.time_out) el.textContent = getElapsed(ci.time_in); }
+            });
+        }, 60000);
+
+        setDateRange(todayStr(), todayStr(), 'Today');
+        connectSSE();
+    })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+__pycache__/
+*.pyc
+*.pyo
+*.db
+*.db-journal
+.env
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+node_modules/
+.vercel/
+
+# Keep the Excel file in backend/ but ignore the root copy
+/Information Note Master.xlsm
+
+# Local dev artifacts
+checkin-app/

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NCEMC - Visitor QR Code</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="qr-body">
+    <div class="qr-page">
+        <h1>Scan to Check In</h1>
+        <p class="qr-subtitle">NCEMC Site Visit Self-Service</p>
+        <div class="qr-frame">
+            <img id="qr-img" alt="QR Code" class="qr-img">
+        </div>
+        <p class="qr-instructions">
+            Point your phone camera at this QR code<br>
+            to open the check-in page.
+        </p>
+        <div class="qr-links">
+            <a href="/dashboard.html" class="btn btn-sm">Back to Dashboard</a>
+            <button class="btn btn-sm" onclick="window.print()">Print This Page</button>
+        </div>
+    </div>
+
+    <script src="/js/config.js"></script>
+    <script src="/js/api.js"></script>
+    <script>
+        if (!api.requireAuth()) { /* redirects to login */ }
+        document.getElementById('qr-img').src = window.API_URL + '/api/qr.png';
+    </script>
+</body>
+</html>
