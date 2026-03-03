@@ -192,32 +192,47 @@
         });
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playTone(freq, type, startTime, duration, volume) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(volume, startTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(startTime); osc.stop(startTime + duration);
+        }
+
         function playAlert(isWalkin) {
             if (!soundEnabled) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
             if (isWalkin) {
-                [880, 1046.5, 880].forEach((freq, i) => {
-                    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
-                    osc.type = 'triangle'; osc.frequency.value = freq;
-                    gain.gain.setValueAtTime(0.35, audioCtx.currentTime + i * 0.12);
-                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + i * 0.12 + 0.35);
-                    osc.connect(gain); gain.connect(audioCtx.destination);
-                    osc.start(audioCtx.currentTime + i * 0.12); osc.stop(audioCtx.currentTime + i * 0.12 + 0.35);
+                // Walk-in: urgent triple beep (triangle wave, ascending)
+                [880, 1046.5, 1318.5].forEach((freq, i) => {
+                    playTone(freq, 'triangle', audioCtx.currentTime + i * 0.14, 0.3, 0.4);
                 });
             } else {
-                [523.25, 659.25].forEach((freq, i) => {
-                    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
-                    osc.type = 'sine'; osc.frequency.value = freq;
-                    gain.gain.setValueAtTime(0.3, audioCtx.currentTime + i * 0.15);
-                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + i * 0.15 + 0.6);
-                    osc.connect(gain); gain.connect(audioCtx.destination);
-                    osc.start(audioCtx.currentTime + i * 0.15); osc.stop(audioCtx.currentTime + i * 0.15 + 0.6);
+                // Regular check-in: friendly two-tone chime (sine, ascending)
+                [523.25, 783.99].forEach((freq, i) => {
+                    playTone(freq, 'sine', audioCtx.currentTime + i * 0.18, 0.5, 0.3);
                 });
             }
         }
 
-        document.getElementById('btn-sound').addEventListener('click', function() {
-            soundEnabled = !soundEnabled; this.classList.toggle('muted', !soundEnabled);
+        function playCheckoutSound() {
+            if (!soundEnabled) return;
             if (audioCtx.state === 'suspended') audioCtx.resume();
+            // Checkout: descending two-tone (sine, going down — signals departure)
+            [783.99, 523.25].forEach((freq, i) => {
+                playTone(freq, 'sine', audioCtx.currentTime + i * 0.18, 0.5, 0.25);
+            });
+        }
+
+        document.getElementById('btn-sound').addEventListener('click', function() {
+            soundEnabled = !soundEnabled;
+            this.classList.toggle('muted', !soundEnabled);
+            if (soundEnabled && audioCtx.state === 'suspended') audioCtx.resume();
         });
 
         if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
@@ -245,7 +260,10 @@
                 const data = JSON.parse(e.data);
                 const ci = checkins.find(c => c.id === data.id);
                 if (ci) { ci.time_out = data.time_out; renderAll(); }
-                if (isViewingToday) showToast(data.visitor_name + ' checked out at ' + data.time_out, 'checkout');
+                if (isViewingToday) {
+                    showToast(data.visitor_name + ' checked out at ' + data.time_out, 'checkout');
+                    playCheckoutSound();
+                }
             });
 
             es.addEventListener('update_checkin', e => {
