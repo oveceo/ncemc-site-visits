@@ -288,11 +288,22 @@
             if ('Notification' in window && Notification.permission === 'granted') new Notification(title, { body });
         }
 
+        let sseInstance = null;
+        let sseRetryDelay = 1000;
+
         function connectSSE() {
             const status = document.getElementById('conn-status');
-            const es = new EventSource(api.sseUrl('/api/dashboard/stream'));
+            if (sseInstance) { try { sseInstance.close(); } catch(e) {} }
 
-            es.addEventListener('connected', () => { status.classList.add('connected'); status.querySelector('.status-text').textContent = 'Live'; });
+            const es = new EventSource(api.sseUrl('/api/dashboard/stream'));
+            sseInstance = es;
+
+            es.addEventListener('connected', () => {
+                sseRetryDelay = 1000;
+                status.classList.add('connected');
+                status.querySelector('.status-text').textContent = 'Live';
+                loadCheckins();
+            });
 
             es.addEventListener('new_checkin', e => {
                 const data = JSON.parse(e.data);
@@ -330,7 +341,6 @@
 
             es.addEventListener('archive', e => {
                 const data = JSON.parse(e.data);
-                // If another tab/user archived records, refresh
                 checkins = checkins.filter(c => !(c.time_out || c.complete));
                 renderAll();
             });
@@ -340,7 +350,13 @@
                 if (isViewingToday) loadCheckins();
             });
 
-            es.onerror = () => { status.classList.remove('connected'); status.querySelector('.status-text').textContent = 'Reconnecting...'; };
+            es.onerror = () => {
+                status.classList.remove('connected');
+                status.querySelector('.status-text').textContent = 'Reconnecting...';
+                es.close();
+                sseRetryDelay = Math.min(sseRetryDelay * 2, 15000);
+                setTimeout(connectSSE, sseRetryDelay);
+            };
         }
 
         function loadCheckins() {

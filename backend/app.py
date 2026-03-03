@@ -683,11 +683,34 @@ def api_dashboard_update(checkin_id):
     return jsonify({"success": True})
 
 
-@app.route("/api/dashboard/archive", methods=["POST"])
+@app.route("/api/dashboard/archive", methods=["GET", "POST"])
 @token_required
-def api_archive_completed():
-    """Archive all completed check-ins for the given date (default today)."""
+def api_dashboard_archive():
+    """GET = list 7-day archive, POST = archive all completed for a date."""
     db = get_db()
+
+    if request.method == "GET":
+        rows = db.execute("""
+            SELECT c.*, v.name as visitor_name, v.company, v.phone, v.approved
+            FROM checkins c JOIN visitors v ON v.id = c.visitor_id
+            WHERE c.archived_at IS NOT NULL
+              AND c.archived_at >= datetime('now', '-7 days')
+            ORDER BY c.archived_at DESC, c.date_stamp DESC, c.time_in DESC
+        """).fetchall()
+        return jsonify([{
+            "id": r["id"], "visitor_id": r["visitor_id"],
+            "visitor_name": r["visitor_name"], "company": r["company"],
+            "phone": r["phone"], "site": r["site"],
+            "estimated_time": r["estimated_time"], "reason": r["reason"],
+            "notes": r["notes"], "time_in": r["time_in"], "time_out": r["time_out"],
+            "uar_number": r["uar_number"], "ticket_closed": r["ticket_closed"],
+            "alarms_clear": r["alarms_clear"], "alarm_details": r["alarm_details"],
+            "complete": r["complete"], "is_walkin": r["is_walkin"],
+            "approved": r["approved"], "date_stamp": r["date_stamp"],
+            "archived_at": r["archived_at"],
+        } for r in rows])
+
+    # POST — archive all completed
     data = request.get_json() or {}
     target_date = data.get("date", date.today().isoformat())
     now_ts = datetime.now().isoformat()
@@ -735,32 +758,6 @@ def api_archive_one(checkin_id):
     audit("archive_one", f"#{checkin_id} — {row['visitor_name']} ({row['company']}) archived individually", "staff")
     notify_dashboard("archive", {"id": checkin_id, "visitor_name": row["visitor_name"]})
     return jsonify({"success": True})
-
-
-@app.route("/api/dashboard/archive")
-@token_required
-def api_list_archive():
-    """Return archived check-ins from the last 7 days."""
-    db = get_db()
-    rows = db.execute("""
-        SELECT c.*, v.name as visitor_name, v.company, v.phone, v.approved
-        FROM checkins c JOIN visitors v ON v.id = c.visitor_id
-        WHERE c.archived_at IS NOT NULL
-          AND c.archived_at >= datetime('now', '-7 days')
-        ORDER BY c.archived_at DESC, c.date_stamp DESC, c.time_in DESC
-    """).fetchall()
-    return jsonify([{
-        "id": r["id"], "visitor_id": r["visitor_id"],
-        "visitor_name": r["visitor_name"], "company": r["company"],
-        "phone": r["phone"], "site": r["site"],
-        "estimated_time": r["estimated_time"], "reason": r["reason"],
-        "notes": r["notes"], "time_in": r["time_in"], "time_out": r["time_out"],
-        "uar_number": r["uar_number"], "ticket_closed": r["ticket_closed"],
-        "alarms_clear": r["alarms_clear"], "alarm_details": r["alarm_details"],
-        "complete": r["complete"], "is_walkin": r["is_walkin"],
-        "approved": r["approved"], "date_stamp": r["date_stamp"],
-        "archived_at": r["archived_at"],
-    } for r in rows])
 
 
 @app.route("/api/dashboard/archive/restore/<int:checkin_id>", methods=["POST"])
@@ -1178,6 +1175,11 @@ def api_qr_png():
 # ---------------------------------------------------------------------------
 # Health check
 # ---------------------------------------------------------------------------
+@app.route("/")
+def root():
+    return jsonify({"status": "ok", "service": "ncemc-checkin-api"})
+
+
 @app.route("/api/health")
 def health():
     try:
