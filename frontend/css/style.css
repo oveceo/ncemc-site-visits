@@ -610,6 +610,10 @@ label {
     .stat-label { font-size: 0.7rem; }
 }
 
+/* Copy info button */
+.btn-copy { color: var(--primary); }
+.btn-copied { background: var(--success, #10b981) !important; color: #fff !important; }
+
 /* Mode selection buttons */
 .mode-buttons { display: flex; flex-direction: column; gap: 16px; margin-top: 1.5rem; }
 .mode-btn { display: flex; align-items: center; justify-content: center; gap: 12px;

@@ -692,24 +692,34 @@
 
         $('btn-already-checkout').addEventListener('click', function() {
             if (!selectedVisitor || !selectedVisitor.id) { alert('Unable to check out. Please contact the control room.'); return; }
-            this.disabled = true; this.innerHTML = '<span class="spinner"></span> Checking out...';
-            fetch(window.API_URL + '/api/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ visitor_id: selectedVisitor.id }) })
-            .then(r => r.json()).then(data => {
-                if (data.success) { $('co-done-name').textContent = selectedVisitor.name || ''; $('co-done-time').textContent = data.time_out; showStep(steps.coDone); }
-                else { alert(data.error || 'Checkout failed.'); this.disabled = false; this.textContent = 'CHECK OUT NOW'; }
-            }).catch(() => { alert('Connection error.'); this.disabled = false; this.textContent = 'CHECK OUT NOW'; });
+            coSelectedPerson = {
+                vid: selectedVisitor.id,
+                name: selectedVisitor.name || '',
+                company: selectedCompany || selectedVisitor.company || '',
+                detail: 'Checked in at ' + ($('already-time').textContent || '') + ' — ' + ($('already-site').textContent || '')
+            };
+            $('co-confirm-avatar').textContent = initials(coSelectedPerson.name);
+            $('co-confirm-name').textContent = coSelectedPerson.name;
+            $('co-confirm-company').textContent = coSelectedPerson.company;
+            $('co-confirm-detail').textContent = coSelectedPerson.detail;
+            showStep(steps.coConfirm);
         });
 
         $('btn-already-cancel').addEventListener('click', () => showStep(steps.name));
         $('btn-new').addEventListener('click', resetAll);
         $('btn-checkout').addEventListener('click', function() {
             if (!selectedVisitor || !selectedVisitor.id) { alert('Unable to check out. Please contact the control room.'); return; }
-            this.disabled = true; this.innerHTML = '<span class="spinner"></span> Checking out...';
-            fetch(window.API_URL + '/api/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ visitor_id: selectedVisitor.id }) })
-            .then(r => r.json()).then(data => {
-                if (data.success) { $('co-done-name').textContent = selectedVisitor.name || ''; $('co-done-time').textContent = data.time_out; showStep(steps.coDone); }
-                else { alert(data.error || 'Checkout failed.'); this.disabled = false; this.textContent = 'CHECK OUT WHEN DONE'; }
-            }).catch(() => { alert('Connection error.'); this.disabled = false; this.textContent = 'CHECK OUT WHEN DONE'; });
+            coSelectedPerson = {
+                vid: selectedVisitor.id,
+                name: selectedVisitor.name || '',
+                company: selectedCompany || selectedVisitor.company || '',
+                detail: 'Checked in at ' + ($('confirm-time').textContent || '') + ' — ' + ($('confirm-site').textContent || '')
+            };
+            $('co-confirm-avatar').textContent = initials(coSelectedPerson.name);
+            $('co-confirm-name').textContent = coSelectedPerson.name;
+            $('co-confirm-company').textContent = coSelectedPerson.company;
+            $('co-confirm-detail').textContent = coSelectedPerson.detail;
+            showStep(steps.coConfirm);
         });
 
         function showStep(step) { Object.values(steps).forEach(s => s.classList.remove('active')); step.classList.add('active'); window.scrollTo(0, 0); }
