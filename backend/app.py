@@ -964,13 +964,11 @@ def api_export_pdf():
                             pdf.set_xy(box_x + box_size + 1.5, y)
                             pdf.cell(w - box_size - 3, row_height, val, border=0, align="L", fill=False)
                     else:
-                        # Center the box for Ticket Closed, Alarms Clear, Complete
                         box_x = x + (w - box_size) / 2
                         box_y = y + (row_height - box_size) / 2
                         pdf.rect(box_x, box_y, box_size, box_size)
-                        # Check it if there's a value
-                        if val:
-                            # Draw checkmark inside the box
+                        checked = val and val.strip().lower() not in ("no", "n", "")
+                        if checked:
                             pdf.line(box_x + 0.5, box_y + 1.5, box_x + 1.5, box_y + 2.5)
                             pdf.line(box_x + 1.5, box_y + 2.5, box_x + 2.5, box_y + 0.5)
                     
